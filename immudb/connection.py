@@ -5,11 +5,7 @@ PERMISSION_NONE, \
 PERMISSION_R, \
 PERMISSION_RW
 
-class LogoutError(Exception):
-    pass
-
-class LoginError(Exception):
-    pass
+from exceptions import LoginError, LogoutError
 
 def starting_db(*, user: str, password: str, url: str | None = None) -> ImmudbClient:
     try:
@@ -25,3 +21,4 @@ def finish_db(*, client: ImmudbClient) -> None:
         client.logout()
     except Exception as e:
         raise LogoutError(f'Error while trying to logout from the active client season, error: {str(e)}')
+    
