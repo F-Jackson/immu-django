@@ -1,12 +1,11 @@
+#start immudb
+from immudb.datatypes import DeleteKeysRequest
+import json
+from datetime import datetime, timedelta
 from django.db import models
 
 from abc import ABC
 
-from immudb_connection.connection import starting_db
-
-
-immu_client = starting_db(user='immudb', password='immudb')
-print(immu_client)
 
 class ImmudbModel(models.Model):
     nome = models.CharField(max_length=155)
@@ -33,5 +32,7 @@ class ImmudbModel(models.Model):
     #     deleteRequest = DeleteKeysRequest(keys=[self.pk.encode()])
     #     self.immu_client.delete(deleteRequest)
 
-    def get_obj(self, pk=str):
-        return immu_client.get(pk.encode())
+    def get(self, *args, **kwargs):
+        print(args)
+        # Do any custom logic here before calling the default get method
+        return super().get(*args, **kwargs)
