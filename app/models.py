@@ -49,6 +49,11 @@ class ImmudbModel(models.Model):
                 json.dumps(values).encode()
             )
         # super().save(*args, **kwargs)
+        
+    @classmethod
+    def create(cls, **kwargs):
+        cls.objects.create(**kwargs)
+            
 
     # def delete(self):
     #     deleteRequest = DeleteKeysRequest(keys=[self.pk.encode()])
