@@ -7,6 +7,7 @@ from django.utils.crypto import get_random_string
 import random
 
 from immudb_connection.connection import starting_db
+from immudb.datatypes import DeleteKeysRequest
 
 
 immu_client = starting_db(user='immudb', password='immudb')
@@ -35,8 +36,6 @@ class ImmudbModel(models.Model):
             if field.name is not 'immu_confs' and field.name != 'id':
                 value = getattr(self, field.name)
                 values[field.name] = str(value)
-
-        print(values)
         if self.immu_confs['expireableDateTime'] is not None:
             immu_client.expireableSet(
                 self.uuid.encode(),
@@ -54,10 +53,10 @@ class ImmudbModel(models.Model):
     def create(cls, **kwargs):
         cls.objects.create(**kwargs)
             
-
-    # def delete(self):
-    #     deleteRequest = DeleteKeysRequest(keys=[self.pk.encode()])
-    #     self.immu_client.delete(deleteRequest)
+    @classmethod
+    def delete(cls, pk: str):
+        deleteRequest = DeleteKeysRequest(keys=[pk.encode()])
+        immu_client.delete(deleteRequest)
 
     @classmethod
     def get_obj(cls, pk):
