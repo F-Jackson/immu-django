@@ -54,5 +54,15 @@ class ImmudbModel(models.Model):
     #     deleteRequest = DeleteKeysRequest(keys=[self.pk.encode()])
     #     self.immu_client.delete(deleteRequest)
 
-    def get_obj(self, pk=str):
-        return immu_client.get(pk.encode())
+    @classmethod
+    def get_obj(cls, pk):
+        obj_data = immu_client.get(pk.encode())
+        if obj_data:
+            obj_dict = {
+                'key': obj_data.key.decode(),
+                'value': obj_data.value.decode(),
+                'tx': obj_data.tx
+            }
+            return obj_dict
+        else:
+            return None
