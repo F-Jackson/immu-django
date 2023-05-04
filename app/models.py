@@ -30,36 +30,58 @@ class ImmudbModel(models.Model):
         'expireableDateTime': None
     }
     
-    def save(self, *args, **kwargs):
+    def save(self, *args, **kwargs) -> dict:
         values = {}
+        
         for field in self.__class__._meta.fields:
             if field.name is not 'immu_confs' and field.name != 'id':
                 value = getattr(self, field.name)
                 values[field.name] = str(value)
+                
+        json_values = json.dumps(values).encode()
+        uuid_pk = self.uuid.encode()
+                
+        obj_model = {
+            'uuid': self.uuid,
+            'value': values,
+        }
+                
         if self.immu_confs['expireableDateTime'] is not None:
-            immu_client.expireableSet(
-                self.uuid.encode(),
-                json.dumps(values).encode(),
-                now() + timedelta(**self.immu_confs['expireableDateTime'])
+            expireTime = now() + timedelta(**self.immu_confs['expireableDateTime'])
+            
+            tx_id = immu_client.expireableSet(
+                uuid_pk,
+                json_values,
+                expireTime
             )
+            
+            obj_model['tx_id'] = tx_id
+            
+            return obj_model
         else:
-            immu_client.set(
-                self.uuid.encode(),
-                json.dumps(values).encode()
+            tx_id = immu_client.set(
+                uuid_pk,
+                json_values
             )
-        # super().save(*args, **kwargs)
+            
+            obj_model['tx_id'] = tx_id
+            
+            return obj_model
+        
         
     @classmethod
-    def create(cls, **kwargs):
-        cls.objects.create(**kwargs)
+    def create(cls, **kwargs) -> dict:
+        return cls.objects.create(**kwargs)
+        
             
     @classmethod
-    def delete(cls, pk: str):
+    def delete(cls, pk: str) -> bool:
         deleteRequest = DeleteKeysRequest(keys=[pk.encode()])
-        immu_client.delete(deleteRequest)
+        return immu_client.delete(deleteRequest)
+
 
     @classmethod
-    def get_obj(cls, pk):
+    def get(cls, pk) -> dict:
         obj_data = immu_client.get(pk.encode())
         if obj_data:
             obj_dict = {
@@ -70,3 +92,8 @@ class ImmudbModel(models.Model):
             return obj_dict
         else:
             return None
+
+
+    @classmethod
+    def all(cls, size_limit: int = 1000) -> list[dict]:
+        return immu_client.scan(b'', b'', True, size_limit)
