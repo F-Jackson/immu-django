@@ -86,7 +86,7 @@ class ImmudbModel(models.Model):
 
 
     @classmethod
-    def get(cls, uuid: str, only_verified: bool = False) -> dict:
+    def get(cls, uuid_or_ref: str, only_verified: bool = False) -> dict:
         obj_dict = {}
         
         if only_verified:
@@ -149,15 +149,15 @@ class ImmudbModel(models.Model):
 
 
     @classmethod
-    def all(cls, size_limit: int = 1000) -> Dict[str, str]:
-        scan = immu_client.scan(b'', b'', True, size_limit)
+    def all(cls, size_limit: int = 1000, reverse: bool = True) -> Dict[str, str]:
+        scan = immu_client.scan(b'', b'', reverse, size_limit)
         return {key.decode(): value.decode() for key, value in scan.items()}
 
 
     @classmethod
     def history(cls, uuid: str, 
                 size_limit: int = 1000, starting_in: int = 0, 
-                reverse: bool = False) -> list[dict]:
+                reverse: bool = True) -> list[dict]:
         history_data = immu_client.history(
             uuid.encode(), 
             starting_in, 
@@ -171,16 +171,23 @@ class ImmudbModel(models.Model):
              'tx': data.tx} 
             for data 
             in history_data]
-    # def filter(cls, *, pk: str | None, starts) -> list[dict]:
-    #     pass
+
     
     @classmethod
     def starts_with(cls, uuid: str = '', 
                     prefix: str = '', size_limit: int = 1000, 
-                    reverse: bool = False) -> Dict[str, str]:
+                    reverse: bool = True) -> Dict[str, str]:
         scan = immu_client.scan(
             uuid.encode(), prefix.encode(), 
             reverse, size_limit
         )
         
         return {key.decode(): value.decode() for key, value in scan.items()}
+
+
+    @classmethod
+    def set_ref(cls, uuid: str, ref_key: str, only_verified: bool = False):
+        if only_verified:
+            immu_client.verifiedSetReference(uuid.encode(), ref_key.encode())
+        else:
+            immu_client.setReference(uuid.encode(), ref_key.encode())
