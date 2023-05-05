@@ -1,5 +1,6 @@
 from datetime import timedelta
 import json
+from typing import Dict
 from django.db import models
 from django.utils.timezone import now
 from abc import ABC
@@ -27,14 +28,16 @@ class ImmudbModel(models.Model):
     ok = models.IntegerField()
     
     immu_confs = {
-        'expireableDateTime': None
+        'expireableDateTime': None,
+        'random_uuid': True
     }
     
     def save(self, *args, **kwargs) -> dict:
         values = {}
         
         for field in self.__class__._meta.fields:
-            if field.name is not 'immu_confs' and field.name != 'id':
+            print(field)
+            if field.name != 'immu_confs' and field.name != 'id':
                 value = getattr(self, field.name)
                 values[field.name] = str(value)
                 
@@ -49,22 +52,24 @@ class ImmudbModel(models.Model):
         if self.immu_confs['expireableDateTime'] is not None:
             expireTime = now() + timedelta(**self.immu_confs['expireableDateTime'])
             
-            tx_id = immu_client.expireableSet(
+            tx = immu_client.expireableSet(
                 uuid_pk,
                 json_values,
                 expireTime
             )
             
-            obj_model['tx_id'] = tx_id
+            obj_model['tx_id'] = tx.id
+            obj_model['tx_status'] = tx.verified
             
             return obj_model
         else:
-            tx_id = immu_client.set(
+            tx = immu_client.set(
                 uuid_pk,
                 json_values
             )
             
-            obj_model['tx_id'] = tx_id
+            obj_model['tx_id'] = tx.id
+            obj_model['tx_status'] = tx.verified
             
             return obj_model
         
@@ -75,14 +80,38 @@ class ImmudbModel(models.Model):
         
             
     @classmethod
-    def delete(cls, pk: str) -> bool:
-        deleteRequest = DeleteKeysRequest(keys=[pk.encode()])
+    def delete(cls, uuid: str) -> bool:
+        deleteRequest = DeleteKeysRequest(keys=[uuid.encode()])
         return immu_client.delete(deleteRequest)
 
 
     @classmethod
-    def get(cls, pk) -> dict:
-        obj_data = immu_client.get(pk.encode())
+    def get(cls, uuid: str, only_verified: bool = False) -> dict:
+        obj_dict = {}
+        
+        if only_verified:
+            obj_data = immu_client.verifiedGet(uuid.encode())
+            
+            obj_dict['verified'] = obj_data.verified
+            obj_dict['timestamp'] = obj_data.timestamp
+        else:
+            obj_data = immu_client.get(uuid.encode())
+            
+        if obj_data:
+            obj_dict['key'] = obj_data.key.decode()
+            obj_dict['value'] = obj_data.value.decode()
+            obj_dict['tx_id'] = obj_data.tx
+            
+            return obj_dict
+        else:
+            return None
+
+
+
+    @classmethod
+    def after(cls, uuid: str, tx_id: int, step: int = 0) -> dict:
+        obj_data = immu_client.verifiedGetSince(uuid.encode(), tx_id + step)
+        
         if obj_data:
             obj_dict = {
                 'key': obj_data.key.decode(),
@@ -95,5 +124,9 @@ class ImmudbModel(models.Model):
 
 
     @classmethod
-    def all(cls, size_limit: int = 1000) -> list[dict]:
+    def all(cls, size_limit: int = 1000) -> list[Dict[str, str]]:
         return immu_client.scan(b'', b'', True, size_limit)
+
+
+    # def filter(cls, *, pk: str | None, starts) -> list[dict]:
+    #     pass
