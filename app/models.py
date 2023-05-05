@@ -153,5 +153,22 @@ class ImmudbModel(models.Model):
         return immu_client.scan(b'', b'', True, size_limit)
 
 
+    @classmethod
+    def history(cls, uuid: str, 
+                size_limit: int = 1000, starting_in: int = 0, 
+                reverse: bool = False) -> list[dict]:
+        history_data = immu_client.history(
+            uuid.encode(), 
+            starting_in, 
+            size_limit, 
+            reverse
+        )
+        
+        return [
+            {'key': data.key.decode(), 
+             'value': data.value.decode(), 
+             'tx': data.tx} 
+            for data 
+            in history_data]
     # def filter(cls, *, pk: str | None, starts) -> list[dict]:
     #     pass
