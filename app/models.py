@@ -150,7 +150,8 @@ class ImmudbModel(models.Model):
 
     @classmethod
     def all(cls, size_limit: int = 1000) -> Dict[str, str]:
-        return immu_client.scan(b'', b'', True, size_limit)
+        scan = immu_client.scan(b'', b'', True, size_limit)
+        return {key.decode(): value.decode() for key, value in scan.items()}
 
 
     @classmethod
@@ -172,3 +173,14 @@ class ImmudbModel(models.Model):
             in history_data]
     # def filter(cls, *, pk: str | None, starts) -> list[dict]:
     #     pass
+    
+    @classmethod
+    def starts_with(cls, uuid: str = '', 
+                    prefix: str = '', size_limit: int = 1000, 
+                    reverse: bool = False) -> Dict[str, str]:
+        scan = immu_client.scan(
+            uuid.encode(), prefix.encode(), 
+            reverse, size_limit
+        )
+        
+        return {key.decode(): value.decode() for key, value in scan.items()}
