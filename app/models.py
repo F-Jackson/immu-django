@@ -107,12 +107,12 @@ class ImmudbModel(models.Model):
             return None
 
 
-
     @classmethod
-    def after(cls, uuid: str, tx_id: int, step: int = 0) -> dict:
-        obj_data = immu_client.verifiedGetSince(uuid.encode(), tx_id + step)
+    def get_with_tx(cls, uuid: str, tx_id: int) -> dict:
+        obj_data = immu_client.verifiedGetAt(uuid.encode(), tx_id)
         
         if obj_data:
+            print(obj_data)
             obj_dict = {
                 'tx_id': obj_data.id,
                 'key': obj_data.key.decode(),
@@ -121,8 +121,23 @@ class ImmudbModel(models.Model):
                 'timestamp': obj_data.timestamp
             }
             return obj_dict
-        else:
-            return None
+            
+
+
+    @classmethod
+    def after(cls, uuid: str, tx_id: int, step: int = 0) -> dict:
+        obj_data = immu_client.verifiedGetSince(uuid.encode(), tx_id + step)
+        
+        if obj_data:
+            print(obj_data)
+            obj_dict = {
+                'tx_id': obj_data.id,
+                'key': obj_data.key.decode(),
+                'value': obj_data.value.decode(),
+                'verified': obj_data.verified,
+                'timestamp': obj_data.timestamp
+            }
+            return obj_dict
 
 
     @classmethod
