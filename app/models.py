@@ -114,9 +114,11 @@ class ImmudbModel(models.Model):
         
         if obj_data:
             obj_dict = {
+                'tx_id': obj_data.id,
                 'key': obj_data.key.decode(),
                 'value': obj_data.value.decode(),
-                'tx': obj_data.tx
+                'verified': obj_data.verified,
+                'timestamp': obj_data.timestamp
             }
             return obj_dict
         else:
