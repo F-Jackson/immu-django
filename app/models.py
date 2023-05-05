@@ -94,6 +94,7 @@ class ImmudbModel(models.Model):
             
             obj_dict['verified'] = obj_data.verified
             obj_dict['timestamp'] = obj_data.timestamp
+            obj_data['ref_key'] = obj_data.refkey,
         else:
             obj_data = immu_client.get(uuid.encode())
             
@@ -101,6 +102,7 @@ class ImmudbModel(models.Model):
             obj_dict['key'] = obj_data.key.decode()
             obj_dict['value'] = obj_data.value.decode()
             obj_dict['tx_id'] = obj_data.tx
+            obj_data['revision'] = obj_data.revision
             
             return obj_dict
         else:
@@ -112,16 +114,21 @@ class ImmudbModel(models.Model):
         obj_data = immu_client.verifiedGetAt(uuid.encode(), tx_id)
         
         if obj_data:
-            print(obj_data)
             obj_dict = {
                 'tx_id': obj_data.id,
                 'key': obj_data.key.decode(),
                 'value': obj_data.value.decode(),
                 'verified': obj_data.verified,
-                'timestamp': obj_data.timestamp
+                'timestamp': obj_data.timestamp,
+                'ref_key': obj_data.refkey,
+                'revision': obj_data.revision
             }
             return obj_dict
             
+
+    @classmethod
+    def get_keys(cls, tx_id: int) -> list[str]:
+        return [key.decode() for key in immu_client.txById(tx_id)]
 
 
     @classmethod
@@ -129,19 +136,20 @@ class ImmudbModel(models.Model):
         obj_data = immu_client.verifiedGetSince(uuid.encode(), tx_id + step)
         
         if obj_data:
-            print(obj_data)
             obj_dict = {
                 'tx_id': obj_data.id,
                 'key': obj_data.key.decode(),
                 'value': obj_data.value.decode(),
                 'verified': obj_data.verified,
-                'timestamp': obj_data.timestamp
+                'timestamp': obj_data.timestamp,
+                'ref_key': obj_data.refkey,
+                'revision': obj_data.revision
             }
             return obj_dict
 
 
     @classmethod
-    def all(cls, size_limit: int = 1000) -> list[Dict[str, str]]:
+    def all(cls, size_limit: int = 1000) -> Dict[str, str]:
         return immu_client.scan(b'', b'', True, size_limit)
 
 
