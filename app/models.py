@@ -39,20 +39,32 @@ class ImmudbKeyField(models.Model):
     }
     
     class Meta:
+        """
+            Setting the abc class for only interact with the immu database
+        """
         abstract = True
         managed = False
+        
     
     def save(self, *args, **kwargs) -> dict:
+        """
+            save the model inside the immu datase
+        """
+        
+        # MODEL FIELD VALUES
         values = {}
         
+        # GET ALL THE FIELDS GIVEN BY THE USER INSIDE THE MODEL EXECEPT THE FIELDS THAT ARE NECESSARY FOR THE ABC CLASS WORK
         for field in self.__class__._meta.fields:
             if field.name not in NOT_FIELDS_VALUES:
                 value = getattr(self, field.name)
                 values[field.name] = str(value)
                 
+        # PREPARE ALL THE DATA FOR CREATION
         json_values = json.dumps(values).encode()
         uuid_pk = self.uuid.encode()
                 
+        # SAVING THE MODEL INSIDE THE IMMU DATABASE
         if self.immu_confs['expireableDateTime'] is not None:
             expireTime = now() + timedelta(**self.immu_confs['expireableDateTime'])
             
@@ -65,9 +77,18 @@ class ImmudbKeyField(models.Model):
         
     @classmethod
     def create(cls, *, 
-               uuid: str | None = None, refs: list[str] | None = None, 
-               verified: bool = False, **kwargs) -> dict:
+               uuid: str | None = None, verified: bool = False, 
+               refs: list[str] | None = None, 
+               refs_scores: Dict[str, float] | None = None,
+               **kwargs) -> dict:
+        """
+            Creates an object inside the immu database
+        """
+        
+        # CREATE OBJECT ON IMMU DATABASE
         cls.objects.create(uuid=uuid, verified=verified,**kwargs)
+        
+        # SET REFS
         if refs is not None:
             if verified:
                 for ref in refs:
@@ -76,10 +97,25 @@ class ImmudbKeyField(models.Model):
                 for ref in refs:
                     immu_client.setReference(uuid.encode(), ref.encode())
         
+        # SET ZSCORES
+        if refs_scores is not None:
+            if verified:
+                for ref, score in refs_scores.items():
+                    immu_client.VerifiedZAdd(ref, score, uuid)
+            else:
+                for ref, score in refs_scores.items():
+                    immu_client.zAdd(ref, score, uuid)
+        
             
     @classmethod
     def delete(cls, uuid: str) -> bool:
+        """
+            Set the object with the given uuid as deleted inside the immu database
+        """
+        
+        # SET THE REQUEST FOR SET OBJECT AS DELETED INSIDE THE IMMU DATABASE
         deleteRequest = DeleteKeysRequest(keys=[uuid.encode()])
+        
         return immu_client.delete(deleteRequest)
 
 
@@ -126,6 +162,10 @@ class ImmudbKeyField(models.Model):
 
     @classmethod
     def get_keys(cls, tx_id: int) -> list[str]:
+        """
+            Get all objects keys that have the given transation id
+        """
+        
         return [key.decode() for key in immu_client.txById(tx_id)]
 
 
@@ -148,7 +188,13 @@ class ImmudbKeyField(models.Model):
 
     @classmethod
     def all(cls, size_limit: int = 1000, reverse: bool = True) -> Dict[str, str]:
+        """
+            Get all objects inside the immu databse
+        """
+        
+        # Objects
         scan = immu_client.scan(b'', b'', reverse, size_limit)
+        
         return {key.decode(): value.decode() for key, value in scan.items()}
 
 
@@ -175,6 +221,11 @@ class ImmudbKeyField(models.Model):
     def starts_with(cls, uuid: str = '', 
                     prefix: str = '', size_limit: int = 1000, 
                     reverse: bool = True) -> Dict[str, str]:
+        """
+            Get all objects that the key starts with the given prefix
+        """
+        
+        # Objects
         scan = immu_client.scan(
             uuid.encode(), prefix.encode(), 
             reverse, size_limit
@@ -185,6 +236,10 @@ class ImmudbKeyField(models.Model):
 
     @classmethod
     def set_ref(cls, uuid: str, ref_key: str, only_verified: bool = False):
+        """
+            Set a ref value to a object with the given uuid
+        """
+        
         if only_verified:
             immu_client.verifiedSetReference(uuid.encode(), ref_key.encode())
         else:
