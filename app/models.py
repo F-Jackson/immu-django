@@ -1,5 +1,6 @@
 from datetime import timedelta
 import json
+from typing import Dict
 from django.conf import settings
 from django.db import models
 from django.utils.timezone import now
@@ -8,6 +9,8 @@ import random
 
 from immudb_connection.connection import starting_db
 from immudb.datatypes import DeleteKeysRequest
+
+from immudb_connection.setters import encode_all_objs_key_value_to_saving_in_multiple, get_all_objs_key_value_in_multiple, set_collections_to_unique, set_not_verified_refs_and_collections_in_multiple, set_refs_to_unique, set_verified_refs_and_collections_in_multiple
 
 
 NOT_FIELDS_VALUES = ['immu_confs', 'id', 'uuid', 'verified', 'create_multi']
@@ -86,8 +89,8 @@ class ImmudbKeyField(models.Model):
     def create(cls, 
                uuid: str = None, verified: bool = False, *,
                refs: list[str] = None, 
-               collection_scores: dict[str, float] = None,
-               **kwargs) -> dict:
+               collection_scores: Dict[str, float] = None,
+               **kwargs):
         """
             Creates an object inside the immu database
         """
@@ -96,55 +99,29 @@ class ImmudbKeyField(models.Model):
         cls.objects.create(uuid=uuid, verified=verified,**kwargs)
         
         # SET REFS
-        if refs is not None:
-            if verified:
-                for ref in refs:
-                    immu_client.verifiedSetReference(uuid.encode(), ref.encode())
-            else:
-                for ref in refs:
-                    immu_client.setReference(uuid.encode(), ref.encode())
+        set_refs_to_unique(immu_client, uuid, refs, verified)
         
         # SET ZSCORES
-        if collection_scores is not None:
-            if verified:
-                for ref, score in collection_scores.items():
-                    immu_client.VerifiedZAdd(ref.encode(), score, uuid.encode())
-            else:
-                for ref, score in collection_scores.items():
-                    immu_client.zAdd(ref.encode(), score, uuid.encode())
+        set_collections_to_unique(immu_client, uuid, collection_scores, verified)
         
         
     @classmethod
     def create_mult(cls, obj_list: list[dict[str, dict, list[str], dict[str, float]]] = None):
         try:
-            objs = {}
-            for obj in obj_list:
-                objs[obj['uuid']] = obj['values']
+            objs = get_all_objs_key_value_in_multiple(obj_list)
                 
             cls.objects.create(create_multi=objs)
         except Exception:
             raise ValueError('Error while trying to create_mult')
         else:
-            objs = {key.encode(): json.dumps(value).encode() for key, value in objs.items()}
+            objs = encode_all_objs_key_value_to_saving_in_multiple(objs)
             immu_client.setAll(objs)
             
             for obj in obj_list:
                 if 'verified' in obj and obj['verified']:
-                    if 'refs' in obj:
-                        for ref in obj['refs']:
-                            immu_client.verifiedSetReference(obj['uuid'].encode(), ref.encode())
-                    
-                    if 'collection_scores' in obj:
-                        for ref, score in obj['collection_scores'].items():
-                            immu_client.verifiedZAdd(ref.encode(), score, obj['uuid'].encode())
+                    set_verified_refs_and_collections_in_multiple(immu_client, obj)
                 else:  
-                    if 'refs' in obj:
-                        for ref in obj['refs']:
-                            immu_client.setReference(obj['uuid'].encode(), ref.encode())
-                    
-                    if 'collection_scores' in obj:
-                        for ref, score in obj['collection_scores'].items():
-                            immu_client.zAdd(ref.encode(), score, obj['uuid'].encode())
+                    set_not_verified_refs_and_collections_in_multiple(immu_client, obj)
                     
                     
     @classmethod
@@ -157,6 +134,11 @@ class ImmudbKeyField(models.Model):
             immu_client.verifiedSetReference(uuid.encode(), ref_key.encode())
         else:
             immu_client.setReference(uuid.encode(), ref_key.encode())
+            
+    
+    @classmethod
+    def set_score(cls, uuid: str, collection: str, score: float):
+        immu_client.zAdd(collection, uuid, score)
                     
                     
     # DELETTER                     
