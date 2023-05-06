@@ -8,10 +8,10 @@ PERMISSION_RW
 
 from .exceptions import LoginError, LogoutError
 
-def starting_db(*, user: str, password: str) -> ImmudbClient:
+def starting_db() -> ImmudbClient:
     try:
         client = ImmudbClient(settings.IMMU_URL)
-        client.login(user, password)
+        client.login(settings.IMMU_USER, settings.IMMU_PASSWORD)
     except Exception as e:
         raise LoginError(f'Error while trying to login the client, error: {str(e)}')
     else:

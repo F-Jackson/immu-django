@@ -1,6 +1,7 @@
 from datetime import timedelta
 import json
 from typing import Dict
+from django.conf import settings
 from django.db import models
 from django.utils.timezone import now
 from abc import ABC
@@ -24,7 +25,7 @@ def random_uuid():
 
     return random_str
 
-class ImmudbModel(models.Model):
+class ImmudbKeyField(models.Model):
     nome = models.CharField(max_length=155)
     ok = models.IntegerField()
     
@@ -34,7 +35,7 @@ class ImmudbModel(models.Model):
     
     # ABC VARS
     immu_confs = {
-        'expireableDateTime': None,
+        'expireableDateTime': settings.IMMU_DEFAULT_EXPIRE_TIME,
     }
     
     class Meta:
