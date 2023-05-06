@@ -1,21 +1,18 @@
 from datetime import timedelta
 import json
-from typing import Dict
 from django.conf import settings
 from django.db import models
 from django.utils.timezone import now
-from abc import ABC
 from django.utils.crypto import get_random_string
 import random
 
 from immudb_connection.connection import starting_db
 from immudb.datatypes import DeleteKeysRequest
-from immudb.client import ImmudbClient
 
 
 NOT_FIELDS_VALUES = ['immu_confs', 'id', 'uuid', 'verified', 'create_multi']
 
-immu_client: ImmudbClient = starting_db()
+immu_client = starting_db()
 
 def random_uuid():
     random_str = get_random_string(length=random.randint(10, 255))
@@ -27,9 +24,6 @@ def random_uuid():
     return random_str
 
 class ImmudbKeyField(models.Model):
-    nome = models.CharField(max_length=155)
-    ok = models.IntegerField()
-    
     # DONT TOUCH
     verified = models.BooleanField(default=False)
     create_multi = models.JSONField(null=True, blank=True)
@@ -46,6 +40,7 @@ class ImmudbKeyField(models.Model):
         """
             Setting the abc class for only interact with the immu database
         """
+        abstract = True
         managed = False
         
     
@@ -91,7 +86,7 @@ class ImmudbKeyField(models.Model):
     def create(cls, 
                uuid: str = None, verified: bool = False, *,
                refs: list[str] = None, 
-               collection_scores: Dict[str, float] = None,
+               collection_scores: dict[str, float] = None,
                **kwargs) -> dict:
         """
             Creates an object inside the immu database
@@ -120,7 +115,7 @@ class ImmudbKeyField(models.Model):
         
         
     @classmethod
-    def create_mult(cls, obj_list = None):
+    def create_mult(cls, obj_list: list[dict[str, dict, list[str], dict[str, float]]] = None):
         try:
             objs = {}
             for obj in obj_list:
@@ -153,12 +148,12 @@ class ImmudbKeyField(models.Model):
                     
                     
     @classmethod
-    def set_ref(cls, uuid: str, ref_key: str, only_verified: bool = False):
+    def set_ref(cls, uuid: str, ref_key: str, verified: bool = False):
         """
             Set a ref value to a object with the given uuid
         """
         
-        if only_verified:
+        if verified:
             immu_client.verifiedSetReference(uuid.encode(), ref_key.encode())
         else:
             immu_client.setReference(uuid.encode(), ref_key.encode())
@@ -180,7 +175,7 @@ class ImmudbKeyField(models.Model):
 
     # GETTERS
     @classmethod
-    def after(cls, uuid: str, tx_id: int, step: int = 0) -> dict:
+    def after(cls, uuid: str, tx_id: int, step: int = 0, only_verified: bool = False) -> dict:
         obj_data = immu_client.verifiedGetSince(uuid.encode(), tx_id + step)
         
         if obj_data:
@@ -197,7 +192,7 @@ class ImmudbKeyField(models.Model):
 
 
     @classmethod
-    def all(cls, size_limit: int = 1_000, reverse: bool = True) -> Dict[str, str]:
+    def all(cls, size_limit: int = 1_000, reverse: bool = True) -> dict[str, str]:
         """
             Get all objects inside the immu databse
         """
@@ -237,7 +232,7 @@ class ImmudbKeyField(models.Model):
                   uuid: str = '', score: float = None,
                   reverse: bool = True, 
                   min_score: float = 0, max_score: float = 1_000, 
-                  size_limit: int = 1_000, inclusive_seek: bool = True) -> list[Dict[str, float, int, dict, int]]:
+                  size_limit: int = 1_000, inclusive_seek: bool = True) -> list[dict[str, float, int, dict, int]]:
         data = immu_client.zScan(
             zset=collection.encode(), seekKey=uuid.encode(), 
             seekScore=score, seekAtTx=tx_id,
@@ -308,7 +303,7 @@ class ImmudbKeyField(models.Model):
     @classmethod
     def starts_with(cls, uuid: str = '', 
                     prefix: str = '', size_limit: int = 1_000, 
-                    reverse: bool = True) -> Dict[str, str]:
+                    reverse: bool = True) -> dict[str, str]:
         """
             Get all objects that the key starts with the given prefix
         """
@@ -320,3 +315,4 @@ class ImmudbKeyField(models.Model):
         )
         
         return {key.decode(): value.decode() for key, value in scan.items()}
+    
