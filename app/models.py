@@ -11,6 +11,8 @@ from immudb_connection.connection import starting_db
 from immudb.datatypes import DeleteKeysRequest
 
 
+NOT_FIELDS_VALUES = ['immu_confs', 'id', 'uuid', 'verified']
+
 immu_client = starting_db(user='immudb', password='immudb')
 
 def random_uuid():
@@ -23,10 +25,11 @@ def random_uuid():
     return random_str
 
 class ImmudbModel(models.Model):
-    uuid = models.CharField(max_length=255, default=random_uuid())
     nome = models.CharField(max_length=155)
     ok = models.IntegerField()
     
+    verified = models.BooleanField(default=False)
+    uuid = models.CharField(max_length=255, default=random_uuid())
     immu_confs = {
         'expireableDateTime': None,
         'random_uuid': True
@@ -36,47 +39,41 @@ class ImmudbModel(models.Model):
         values = {}
         
         for field in self.__class__._meta.fields:
-            print(field)
-            if field.name != 'immu_confs' and field.name != 'id':
+            if field.name not in NOT_FIELDS_VALUES:
                 value = getattr(self, field.name)
                 values[field.name] = str(value)
                 
         json_values = json.dumps(values).encode()
         uuid_pk = self.uuid.encode()
                 
-        obj_model = {
-            'uuid': self.uuid,
-            'value': values,
-        }
-                
         if self.immu_confs['expireableDateTime'] is not None:
             expireTime = now() + timedelta(**self.immu_confs['expireableDateTime'])
             
-            tx = immu_client.expireableSet(
-                uuid_pk,
-                json_values,
-                expireTime
-            )
-            
-            obj_model['tx_id'] = tx.id
-            obj_model['tx_status'] = tx.verified
-            
-            return obj_model
+            immu_client.expireableSet(uuid_pk, json_values, expireTime)
+        elif self.verified:
+            immu_client.verifiedSet(uuid_pk, json_values)
         else:
-            tx = immu_client.set(
-                uuid_pk,
-                json_values
-            )
-            
-            obj_model['tx_id'] = tx.id
-            obj_model['tx_status'] = tx.verified
-            
-            return obj_model
+            immu_client.set(uuid_pk, json_values)
         
         
     @classmethod
-    def create(cls, **kwargs) -> dict:
-        return cls.objects.create(**kwargs)
+    def create(cls, *, 
+               uuid: str | None = None, refs: list[str] | None = None, 
+               verified: bool = False, **kwargs) -> dict:
+        cls.objects.create(uuid=uuid, verified=verified,**kwargs)
+        if refs is not None:
+            if verified:
+                for ref in refs:
+                    immu_client.verifiedSetReference(uuid.encode(), ref.encode())
+            else:
+                for ref in refs:
+                    immu_client.setReference(uuid.encode(), ref.encode())
+                
+    
+    
+    # @classmethod
+    # def create(cls, *, uuid: str | None = None, refs: list[str] | None = None, **kwargs) -> dict:
+    #     return cls.objects.create(**kwargs)
         
             
     @classmethod
@@ -90,19 +87,20 @@ class ImmudbModel(models.Model):
         obj_dict = {}
         
         if only_verified:
-            obj_data = immu_client.verifiedGet(uuid.encode())
+            obj_data = immu_client.verifiedGet(uuid_or_ref.encode())
             
             obj_dict['verified'] = obj_data.verified
             obj_dict['timestamp'] = obj_data.timestamp
             obj_data['ref_key'] = obj_data.refkey,
         else:
-            obj_data = immu_client.get(uuid.encode())
+            obj_data = immu_client.get(uuid_or_ref.encode())
             
         if obj_data:
+            print(obj_data)
             obj_dict['key'] = obj_data.key.decode()
             obj_dict['value'] = obj_data.value.decode()
             obj_dict['tx_id'] = obj_data.tx
-            obj_data['revision'] = obj_data.revision
+            obj_dict['revision'] = obj_data.revision
             
             return obj_dict
         else:
