@@ -10,11 +10,12 @@ import random
 
 from immudb_connection.connection import starting_db
 from immudb.datatypes import DeleteKeysRequest
+from immudb.client import ImmudbClient
 
 
-NOT_FIELDS_VALUES = ['immu_confs', 'id', 'uuid', 'verified']
+NOT_FIELDS_VALUES = ['immu_confs', 'id', 'uuid', 'verified', 'create_multi']
 
-immu_client = starting_db(user='immudb', password='immudb')
+immu_client: ImmudbClient = starting_db()
 
 def random_uuid():
     random_str = get_random_string(length=random.randint(10, 255))
@@ -31,6 +32,7 @@ class ImmudbKeyField(models.Model):
     
     # DONT TOUCH
     verified = models.BooleanField(default=False)
+    create_multi = models.JSONField(null=True, blank=True)
     uuid = models.CharField(max_length=255, default=random_uuid())
     
     # ABC VARS
@@ -42,7 +44,6 @@ class ImmudbKeyField(models.Model):
         """
             Setting the abc class for only interact with the immu database
         """
-        abstract = True
         managed = False
         
     
@@ -50,6 +51,11 @@ class ImmudbKeyField(models.Model):
         """
             save the model inside the immu datase
         """
+        
+        if self.create_multi is not None and self.create_multi != 'MULTI':
+            for obj_uuid, value in self.create_multi.items():
+                ImmudbKeyField.objects.create(create_multi='MULTI', uuid=obj_uuid, **value)
+            return
         
         # MODEL FIELD VALUES
         values = {}
@@ -59,6 +65,9 @@ class ImmudbKeyField(models.Model):
             if field.name not in NOT_FIELDS_VALUES:
                 value = getattr(self, field.name)
                 values[field.name] = str(value)
+                
+        if self.create_multi == 'MULTI':
+            return
                 
         # PREPARE ALL THE DATA FOR CREATION
         json_values = json.dumps(values).encode()
@@ -76,8 +85,8 @@ class ImmudbKeyField(models.Model):
         
         
     @classmethod
-    def create(cls, *, 
-               uuid: str | None = None, verified: bool = False, 
+    def create(cls, 
+               uuid: str | None = None, verified: bool = False, *,
                refs: list[str] | None = None, 
                refs_scores: Dict[str, float] | None = None,
                **kwargs) -> dict:
@@ -101,12 +110,45 @@ class ImmudbKeyField(models.Model):
         if refs_scores is not None:
             if verified:
                 for ref, score in refs_scores.items():
-                    immu_client.VerifiedZAdd(ref, score, uuid)
+                    immu_client.VerifiedZAdd(ref.encode(), score, uuid.encode())
             else:
                 for ref, score in refs_scores.items():
-                    immu_client.zAdd(ref, score, uuid)
+                    immu_client.zAdd(ref.encode(), score, uuid.encode())
         
+        
+    @classmethod
+    def create_mult(cls, obj_list = None):
+        try:
+            objs = {}
+            for obj in obj_list:
+                objs[obj['uuid']] = obj['values']
+                
+            cls.objects.create(create_multi=objs)
+        except Exception:
+            raise ValueError('Error while trying to create_mult')
+        else:
+            objs = {key.encode(): json.dumps(value).encode() for key, value in objs.items()}
+            immu_client.setAll(objs)
             
+            for obj in obj_list:
+                if 'verified' in obj and obj['verified']:
+                    if 'refs' in obj:
+                        for ref in obj['refs']:
+                            immu_client.verifiedSetReference(obj['uuid'].encode(), ref.encode())
+                    
+                    if 'refs_scores' in obj:
+                        for ref, score in obj['refs_scores'].items():
+                            immu_client.verifiedZAdd(ref.encode(), score, obj['uuid'].encode())
+                else:  
+                    if 'refs' in obj:
+                        for ref in obj['refs']:
+                            immu_client.setReference(obj['uuid'].encode(), ref.encode())
+                    
+                    if 'refs_scores' in obj:
+                        for ref, score in obj['refs_scores'].items():
+                            immu_client.zAdd(ref.encode(), score, obj['uuid'].encode())
+                         
+    
     @classmethod
     def delete(cls, uuid: str) -> bool:
         """
