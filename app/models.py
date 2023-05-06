@@ -89,9 +89,9 @@ class ImmudbKeyField(models.Model):
     # SETTERS
     @classmethod
     def create(cls, 
-               uuid: str | None = None, verified: bool = False, *,
-               refs: list[str] | None = None, 
-               refs_scores: Dict[str, float] | None = None,
+               uuid: str = None, verified: bool = False, *,
+               refs: list[str] = None, 
+               collection_scores: Dict[str, float] = None,
                **kwargs) -> dict:
         """
             Creates an object inside the immu database
@@ -110,12 +110,12 @@ class ImmudbKeyField(models.Model):
                     immu_client.setReference(uuid.encode(), ref.encode())
         
         # SET ZSCORES
-        if refs_scores is not None:
+        if collection_scores is not None:
             if verified:
-                for ref, score in refs_scores.items():
+                for ref, score in collection_scores.items():
                     immu_client.VerifiedZAdd(ref.encode(), score, uuid.encode())
             else:
-                for ref, score in refs_scores.items():
+                for ref, score in collection_scores.items():
                     immu_client.zAdd(ref.encode(), score, uuid.encode())
         
         
@@ -139,16 +139,16 @@ class ImmudbKeyField(models.Model):
                         for ref in obj['refs']:
                             immu_client.verifiedSetReference(obj['uuid'].encode(), ref.encode())
                     
-                    if 'refs_scores' in obj:
-                        for ref, score in obj['refs_scores'].items():
+                    if 'collection_scores' in obj:
+                        for ref, score in obj['collection_scores'].items():
                             immu_client.verifiedZAdd(ref.encode(), score, obj['uuid'].encode())
                 else:  
                     if 'refs' in obj:
                         for ref in obj['refs']:
                             immu_client.setReference(obj['uuid'].encode(), ref.encode())
                     
-                    if 'refs_scores' in obj:
-                        for ref, score in obj['refs_scores'].items():
+                    if 'collection_scores' in obj:
+                        for ref, score in obj['collection_scores'].items():
                             immu_client.zAdd(ref.encode(), score, obj['uuid'].encode())
                     
                     
@@ -197,7 +197,7 @@ class ImmudbKeyField(models.Model):
 
 
     @classmethod
-    def all(cls, size_limit: int = 1000, reverse: bool = True) -> Dict[str, str]:
+    def all(cls, size_limit: int = 1_000, reverse: bool = True) -> Dict[str, str]:
         """
             Get all objects inside the immu databse
         """
@@ -233,6 +233,34 @@ class ImmudbKeyField(models.Model):
 
 
     @classmethod
+    def get_score(cls, collection: str, tx_id: int = None, 
+                  uuid: str = '', score: float = None,
+                  reverse: bool = True, 
+                  min_score: float = 0, max_score: float = 1_000, 
+                  size_limit: int = 1_000, inclusive_seek: bool = True) -> list[Dict[str, float, int, dict, int]]:
+        data = immu_client.zScan(
+            zset=collection.encode(), seekKey=uuid.encode(), 
+            seekScore=score, seekAtTx=tx_id,
+            inclusive=inclusive_seek, limit=size_limit,
+            desc=reverse,
+            minscore=min_score, maxscore=max_score
+        )
+        
+        objs_data = []
+        for obj in data.entries:
+            obj_dict = {
+                'key': obj.key.decode(),
+                'score': obj.score,
+                'tx_id': obj.entry.tx,
+                'value': obj.entry.value.decode(),
+                'revision': obj.entry.revision
+            }
+            objs_data.append(obj_dict)
+            
+        return objs_data
+
+
+    @classmethod
     def get_tx(cls, tx_id: int) -> list[str]:
         """
             Get all objects keys that have the given transation id
@@ -260,7 +288,7 @@ class ImmudbKeyField(models.Model):
 
     @classmethod
     def history(cls, uuid: str, 
-                size_limit: int = 1000, starting_in: int = 0, 
+                size_limit: int = 1_000, starting_in: int = 0, 
                 reverse: bool = True) -> list[dict]:
         history_data = immu_client.history(
             uuid.encode(), 
@@ -279,7 +307,7 @@ class ImmudbKeyField(models.Model):
     
     @classmethod
     def starts_with(cls, uuid: str = '', 
-                    prefix: str = '', size_limit: int = 1000, 
+                    prefix: str = '', size_limit: int = 1_000, 
                     reverse: bool = True) -> Dict[str, str]:
         """
             Get all objects that the key starts with the given prefix
