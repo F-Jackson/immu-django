@@ -40,6 +40,8 @@ class ImmudbKeyField(models.Model):
         'expireableDateTime': settings.IMMU_DEFAULT_EXPIRE_TIME,
     }
     
+    
+    # CONFIG METHODS 
     class Meta:
         """
             Setting the abc class for only interact with the immu database
@@ -82,8 +84,9 @@ class ImmudbKeyField(models.Model):
             immu_client.verifiedSet(uuid_pk, json_values)
         else:
             immu_client.set(uuid_pk, json_values)
-        
-        
+    
+    
+    # SETTERS
     @classmethod
     def create(cls, 
                uuid: str | None = None, verified: bool = False, *,
@@ -147,7 +150,21 @@ class ImmudbKeyField(models.Model):
                     if 'refs_scores' in obj:
                         for ref, score in obj['refs_scores'].items():
                             immu_client.zAdd(ref.encode(), score, obj['uuid'].encode())
-                         
+                    
+                    
+    @classmethod
+    def set_ref(cls, uuid: str, ref_key: str, only_verified: bool = False):
+        """
+            Set a ref value to a object with the given uuid
+        """
+        
+        if only_verified:
+            immu_client.verifiedSetReference(uuid.encode(), ref_key.encode())
+        else:
+            immu_client.setReference(uuid.encode(), ref_key.encode())
+                    
+                    
+    # DELETTER                     
     
     @classmethod
     def delete(cls, uuid: str) -> bool:
@@ -161,56 +178,7 @@ class ImmudbKeyField(models.Model):
         return immu_client.delete(deleteRequest)
 
 
-    @classmethod
-    def get(cls, uuid_or_ref: str, only_verified: bool = False) -> dict:
-        obj_dict = {}
-        
-        if only_verified:
-            obj_data = immu_client.verifiedGet(uuid_or_ref.encode())
-            
-            obj_dict['verified'] = obj_data.verified
-            obj_dict['timestamp'] = obj_data.timestamp
-            obj_data['ref_key'] = obj_data.refkey,
-        else:
-            obj_data = immu_client.get(uuid_or_ref.encode())
-            
-        if obj_data:
-            obj_dict['key'] = obj_data.key.decode()
-            obj_dict['value'] = obj_data.value.decode()
-            obj_dict['tx_id'] = obj_data.tx
-            obj_dict['revision'] = obj_data.revision
-            
-            return obj_dict
-        else:
-            return None
-
-
-    @classmethod
-    def get_with_tx(cls, uuid: str, tx_id: int) -> dict:
-        obj_data = immu_client.verifiedGetAt(uuid.encode(), tx_id)
-        
-        if obj_data:
-            obj_dict = {
-                'tx_id': obj_data.id,
-                'key': obj_data.key.decode(),
-                'value': obj_data.value.decode(),
-                'verified': obj_data.verified,
-                'timestamp': obj_data.timestamp,
-                'ref_key': obj_data.refkey,
-                'revision': obj_data.revision
-            }
-            return obj_dict
-            
-
-    @classmethod
-    def get_keys(cls, tx_id: int) -> list[str]:
-        """
-            Get all objects keys that have the given transation id
-        """
-        
-        return [key.decode() for key in immu_client.txById(tx_id)]
-
-
+    # GETTERS
     @classmethod
     def after(cls, uuid: str, tx_id: int, step: int = 0) -> dict:
         obj_data = immu_client.verifiedGetSince(uuid.encode(), tx_id + step)
@@ -238,6 +206,56 @@ class ImmudbKeyField(models.Model):
         scan = immu_client.scan(b'', b'', reverse, size_limit)
         
         return {key.decode(): value.decode() for key, value in scan.items()}
+
+
+    @classmethod
+    def get(cls, uuid_or_ref: str, only_verified: bool = False) -> dict:
+        obj_dict = {}
+        
+        if only_verified:
+            obj_data = immu_client.verifiedGet(uuid_or_ref.encode())
+            
+            obj_dict['verified'] = obj_data.verified
+            obj_dict['timestamp'] = obj_data.timestamp
+            obj_data['ref_key'] = obj_data.refkey,
+        else:
+            obj_data = immu_client.get(uuid_or_ref.encode())
+            
+        if obj_data:
+            obj_dict['key'] = obj_data.key.decode()
+            obj_dict['value'] = obj_data.value.decode()
+            obj_dict['tx_id'] = obj_data.tx
+            obj_dict['revision'] = obj_data.revision
+            
+            return obj_dict
+        else:
+            return None
+
+
+    @classmethod
+    def get_tx(cls, tx_id: int) -> list[str]:
+        """
+            Get all objects keys that have the given transation id
+        """
+        
+        return [key.decode() for key in immu_client.txById(tx_id)]
+
+
+    @classmethod
+    def get_with_tx(cls, uuid: str, tx_id: int) -> dict:
+        obj_data = immu_client.verifiedGetAt(uuid.encode(), tx_id)
+        
+        if obj_data:
+            obj_dict = {
+                'tx_id': obj_data.id,
+                'key': obj_data.key.decode(),
+                'value': obj_data.value.decode(),
+                'verified': obj_data.verified,
+                'timestamp': obj_data.timestamp,
+                'ref_key': obj_data.refkey,
+                'revision': obj_data.revision
+            }
+            return obj_dict
 
 
     @classmethod
@@ -274,15 +292,3 @@ class ImmudbKeyField(models.Model):
         )
         
         return {key.decode(): value.decode() for key, value in scan.items()}
-
-
-    @classmethod
-    def set_ref(cls, uuid: str, ref_key: str, only_verified: bool = False):
-        """
-            Set a ref value to a object with the given uuid
-        """
-        
-        if only_verified:
-            immu_client.verifiedSetReference(uuid.encode(), ref_key.encode())
-        else:
-            immu_client.setReference(uuid.encode(), ref_key.encode())
