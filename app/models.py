@@ -28,12 +28,18 @@ class ImmudbModel(models.Model):
     nome = models.CharField(max_length=155)
     ok = models.IntegerField()
     
+    # DONT TOUCH
     verified = models.BooleanField(default=False)
     uuid = models.CharField(max_length=255, default=random_uuid())
+    
+    # ABC VARS
     immu_confs = {
         'expireableDateTime': None,
-        'random_uuid': True
     }
+    
+    class Meta:
+        abstract = True
+        managed = False
     
     def save(self, *args, **kwargs) -> dict:
         values = {}
@@ -68,12 +74,6 @@ class ImmudbModel(models.Model):
             else:
                 for ref in refs:
                     immu_client.setReference(uuid.encode(), ref.encode())
-                
-    
-    
-    # @classmethod
-    # def create(cls, *, uuid: str | None = None, refs: list[str] | None = None, **kwargs) -> dict:
-    #     return cls.objects.create(**kwargs)
         
             
     @classmethod
@@ -96,7 +96,6 @@ class ImmudbModel(models.Model):
             obj_data = immu_client.get(uuid_or_ref.encode())
             
         if obj_data:
-            print(obj_data)
             obj_dict['key'] = obj_data.key.decode()
             obj_dict['value'] = obj_data.value.decode()
             obj_dict['tx_id'] = obj_data.tx
