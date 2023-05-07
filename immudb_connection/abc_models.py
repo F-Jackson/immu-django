@@ -29,7 +29,7 @@ from immudb_connection.utils import random_key
 immu_client = starting_db()
 databases = immu_client.databaseList()
 
-def immu_key_field_class(cls):
+def immu_conf_key_value(cls):
     for key, value in IMMU_CONFS_BASE_KEY_VALUE.items():
         if key not in cls.immu_confs:
             cls.immu_confs[key] = value
@@ -39,8 +39,8 @@ def immu_key_field_class(cls):
         
     return cls
 
-@immu_key_field_class
-class ImmudbKeyField(models.Model):
+@immu_conf_key_value
+class ImmudbKeyValue(models.Model):
     # DONT TOUCH
     verified = models.BooleanField(default=False)
     create_multi = models.JSONField(null=True, blank=True)
@@ -323,67 +323,4 @@ class ImmudbKeyField(models.Model):
         )
         
         return {key.decode(): value.decode() for key, value in scan.items()}
-
-
-
-
-class ImmudbSQL(models.Model):    
-    # ABC VARS
-    immu_confs = IMMU_CONFS_BASE_KEY_VALUE
-    
-    # CONFIG METHODS     
-    class Meta:
-        """
-            Setting the abc class for only interact with the immu database
-        """
-        abstract = True
-        managed = False
-        
-
-    def save(self, *args, **kwargs) -> dict:
-        pass
-    
-    
-    @classmethod
-    def on_call(cls):
-        immu_client.useDatabase(cls.immu_confs['database'])
-        
-        
-    @classmethod
-    def create(cls, **kwargs):
-        pass
-    
-    @classmethod
-    def create_mult(cls, obj_list: list[dict]):
-        pass    
-        
-        
-    @classmethod
-    def get(cls, order_by: list[str] = None, **kwargs):
-        pass
-    
-    
-    @classmethod
-    def all(cls, order_by: list[str] = None):
-        pass
-    
-    
-    @classmethod
-    def filter(cls, order_by: list[str] = None, **kwargs):
-        pass
-    
-    
-    @classmethod
-    def exclude(cls, order_by: list[str] = None, **kwargs):
-        pass
-    
-    
-    @classmethod
-    def exists(cls, **kwargs):
-        pass
-    
-    
-    @classmethod
-    def delete(cls, size: int = 1, **kwargs):
-        pass
     
