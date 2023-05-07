@@ -1,0 +1,1 @@
+NOT_FIELDS_VALUES = ['immu_confs', 'id', 'uuid', 'verified', 'create_multi']

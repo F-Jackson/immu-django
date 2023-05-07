@@ -1,19 +1,22 @@
-from datetime import timedelta
 import json
 from typing import Dict
 from django.conf import settings
 from django.db import models
-from django.utils.timezone import now
 from django.utils.crypto import get_random_string
 import random
 
 from immudb_connection.connection import starting_db
 from immudb.datatypes import DeleteKeysRequest
 
-from immudb_connection.setters import encode_all_objs_key_value_to_saving_in_multiple, get_all_objs_key_value_in_multiple, set_collections_to_unique, set_not_verified_refs_and_collections_in_multiple, set_refs_to_unique, set_verified_refs_and_collections_in_multiple
+from immudb_connection.setters import auth_and_get_get_fields, \
+encode_all_objs_key_value_to_saving_in_multiple, \
+get_all_objs_key_value_in_multiple, \
+save_obj_in_database_to_unique, \
+set_collections_to_unique, \
+set_not_verified_refs_and_collections_in_multiple, \
+set_refs_to_unique, \
+set_verified_refs_and_collections_in_multiple
 
-
-NOT_FIELDS_VALUES = ['immu_confs', 'id', 'uuid', 'verified', 'create_multi']
 
 immu_client = starting_db()
 
@@ -51,21 +54,15 @@ class ImmudbKeyField(models.Model):
         """
             save the model inside the immu datase
         """
-        
+        # Verify if is called by multi creation if it is stop the function and auth obj per obj
         if self.create_multi is not None and self.create_multi != 'MULTI':
             for obj_uuid, value in self.create_multi.items():
                 ImmudbKeyField.objects.create(create_multi='MULTI', uuid=obj_uuid, **value)
             return
         
-        # MODEL FIELD VALUES
-        values = {}
+        values = auth_and_get_get_fields(self)
         
-        # GET ALL THE FIELDS GIVEN BY THE USER INSIDE THE MODEL EXECEPT THE FIELDS THAT ARE NECESSARY FOR THE ABC CLASS WORK
-        for field in self.__class__._meta.fields:
-            if field.name not in NOT_FIELDS_VALUES:
-                value = getattr(self, field.name)
-                values[field.name] = str(value)
-                
+        # Verify if is an obj of multi creation and if it is stop the function        
         if self.create_multi == 'MULTI':
             return
                 
@@ -73,15 +70,7 @@ class ImmudbKeyField(models.Model):
         json_values = json.dumps(values).encode()
         uuid_pk = self.uuid.encode()
                 
-        # SAVING THE MODEL INSIDE THE IMMU DATABASE
-        if self.immu_confs['expireableDateTime'] is not None:
-            expireTime = now() + timedelta(**self.immu_confs['expireableDateTime'])
-            
-            immu_client.expireableSet(uuid_pk, json_values, expireTime)
-        elif self.verified:
-            immu_client.verifiedSet(uuid_pk, json_values)
-        else:
-            immu_client.set(uuid_pk, json_values)
+        save_obj_in_database_to_unique(self, immu_client, uuid_pk, json_values)
     
     
     # SETTERS
@@ -98,16 +87,19 @@ class ImmudbKeyField(models.Model):
         # CREATE OBJECT ON IMMU DATABASE
         cls.objects.create(uuid=uuid, verified=verified,**kwargs)
         
-        # SET REFS
         set_refs_to_unique(immu_client, uuid, refs, verified)
         
-        # SET ZSCORES
         set_collections_to_unique(immu_client, uuid, collection_scores, verified)
         
         
     @classmethod
     def create_mult(cls, obj_list: list[dict[str, dict, list[str], dict[str, float]]] = None):
+        """
+            Create multiples objects inside the immu database in one transaction
+        """
+        
         try:
+            # AUTH ALL OBJECTS
             objs = get_all_objs_key_value_in_multiple(obj_list)
                 
             cls.objects.create(create_multi=objs)
@@ -115,8 +107,11 @@ class ImmudbKeyField(models.Model):
             raise ValueError('Error while trying to create_mult')
         else:
             objs = encode_all_objs_key_value_to_saving_in_multiple(objs)
+            
+            # CREATE THE OBJECTS ON IMMU DATABASE
             immu_client.setAll(objs)
             
+            # SET ALL REFS AND COLLECTIONS ON IMMU DATASE
             for obj in obj_list:
                 if 'verified' in obj and obj['verified']:
                     set_verified_refs_and_collections_in_multiple(immu_client, obj)
@@ -142,7 +137,6 @@ class ImmudbKeyField(models.Model):
                     
                     
     # DELETTER                     
-    
     @classmethod
     def delete(cls, uuid: str) -> bool:
         """

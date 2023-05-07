@@ -1,5 +1,31 @@
+from datetime import timedelta
+from django.utils.timezone import now
 import json
 from typing import Dict
+
+from immudb_connection.constants import NOT_FIELDS_VALUES
+
+
+# SAVING METHOD
+def auth_and_get_get_fields(self) -> Dict[str, dict]:
+    values = {}
+    
+    for field in self.__class__._meta.fields:
+        if field.name not in NOT_FIELDS_VALUES:
+            value = getattr(self, field.name)
+            values[field.name] = str(value)
+    return values
+
+
+def save_obj_in_database_to_unique(self, immu_client, uuid: bytes, json_values: bytes):
+    if self.immu_confs['expireableDateTime'] is not None:
+        expireTime = now() + timedelta(**self.immu_confs['expireableDateTime'])
+        
+        immu_client.expireableSet(uuid, json_values, expireTime)
+    elif self.verified:
+        immu_client.verifiedSet(uuid, json_values)
+    else:
+        immu_client.set(uuid, json_values)
 
 
 # SET ONE
