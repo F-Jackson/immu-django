@@ -2,15 +2,17 @@ import json
 from typing import Dict
 from django.conf import settings
 from django.db import models
-from django.utils.crypto import get_random_string
-import random
 
-from immudb_connection.connection import starting_db
 from immudb.datatypes import DeleteKeysRequest
 
-from immudb_connection.getters import get_obj_common_infos, make_obj_after_other_obj, \
+from immudb_connection.connection import starting_db
+
+from immudb_connection.getters import get_obj_common_infos, \
+make_obj_after_other_obj, \
 make_obj_with_tx, \
-get_only_verified_obj, make_objs_history_for_a_key, make_objs_on_collection
+get_only_verified_obj, \
+make_objs_history_for_a_key, \
+make_objs_on_collection
 
 from immudb_connection.setters import auth_and_get_get_fields, \
 encode_all_objs_key_value_to_saving_in_multiple, \
@@ -21,17 +23,10 @@ set_not_verified_refs_and_collections_in_multiple, \
 set_refs_to_unique, \
 set_verified_refs_and_collections_in_multiple
 
+from immudb_connection.utils import random_uuid
+
 
 immu_client = starting_db()
-
-def random_uuid():
-    random_str = get_random_string(length=random.randint(10, 255))
-    immu_obj = immu_client.get(random_str.encode())
-    
-    if immu_obj is not None:
-        return random_uuid()
-
-    return random_str
 
 class ImmudbKeyField(models.Model):
     # DONT TOUCH
@@ -158,7 +153,10 @@ class ImmudbKeyField(models.Model):
 
     # GETTERS
     @classmethod
-    def after(cls, uuid: str, tx_id: int, step: int = 0, only_verified: bool = False) -> dict:
+    def after(cls, uuid: str, tx_id: int, step: int = 0) -> dict:
+        """
+            Get the object after the uuid and transation id
+        """
         obj_data = immu_client.verifiedGetSince(uuid.encode(), tx_id + step)
         
         if obj_data:
@@ -203,6 +201,9 @@ class ImmudbKeyField(models.Model):
                   reverse: bool = True, 
                   min_score: float = 0, max_score: float = 1_000, 
                   size_limit: int = 1_000, inclusive_seek: bool = True) -> list[dict[str, float, int, dict, int]]:
+        """
+            Get objects based on a collection using scores
+        """
         collection_data = immu_client.zScan(
             zset=collection.encode(), seekKey=uuid.encode(), 
             seekScore=score, seekAtTx=tx_id,
@@ -230,6 +231,10 @@ class ImmudbKeyField(models.Model):
 
     @classmethod
     def get_with_tx(cls, uuid: str, tx_id: int) -> dict:
+        """
+            Get a only verified obj using a key and transtion id
+        """
+        
         obj_data = immu_client.verifiedGetAt(uuid.encode(), tx_id)
         
         if obj_data:
@@ -241,6 +246,10 @@ class ImmudbKeyField(models.Model):
     def history(cls, uuid: str, 
                 size_limit: int = 1_000, starting_in: int = 0, 
                 reverse: bool = True) -> list[dict]:
+        """
+            Get the history objects for a key
+        """
+        
         history_data = immu_client.history(
             uuid.encode(), 
             starting_in, 
