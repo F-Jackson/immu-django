@@ -7,7 +7,10 @@ import random
 
 from immudb_connection.connection import starting_db
 from immudb.datatypes import DeleteKeysRequest
-from immudb_connection.getters import get_obj_common_infos, get_only_verified_obj
+
+from immudb_connection.getters import get_obj_common_infos, make_obj_after_other_obj, \
+make_obj_with_tx, \
+get_only_verified_obj, make_objs_history_for_a_key, make_objs_on_collection
 
 from immudb_connection.setters import auth_and_get_get_fields, \
 encode_all_objs_key_value_to_saving_in_multiple, \
@@ -159,16 +162,7 @@ class ImmudbKeyField(models.Model):
         obj_data = immu_client.verifiedGetSince(uuid.encode(), tx_id + step)
         
         if obj_data:
-            obj_dict = {
-                'tx_id': obj_data.id,
-                'key': obj_data.key.decode(),
-                'value': obj_data.value.decode(),
-                'verified': obj_data.verified,
-                'timestamp': obj_data.timestamp,
-                'ref_key': obj_data.refkey,
-                'revision': obj_data.revision
-            }
-            return obj_dict
+            return make_obj_after_other_obj(obj_data)
 
 
     @classmethod
@@ -209,7 +203,7 @@ class ImmudbKeyField(models.Model):
                   reverse: bool = True, 
                   min_score: float = 0, max_score: float = 1_000, 
                   size_limit: int = 1_000, inclusive_seek: bool = True) -> list[dict[str, float, int, dict, int]]:
-        data = immu_client.zScan(
+        collection_data = immu_client.zScan(
             zset=collection.encode(), seekKey=uuid.encode(), 
             seekScore=score, seekAtTx=tx_id,
             inclusive=inclusive_seek, limit=size_limit,
@@ -217,15 +211,10 @@ class ImmudbKeyField(models.Model):
             minscore=min_score, maxscore=max_score
         )
         
+        # Make objects of the collection
         objs_data = []
-        for obj in data.entries:
-            obj_dict = {
-                'key': obj.key.decode(),
-                'score': obj.score,
-                'tx_id': obj.entry.tx,
-                'value': obj.entry.value.decode(),
-                'revision': obj.entry.revision
-            }
+        for obj in collection_data.entries:
+            obj_dict = make_objs_on_collection(obj)
             objs_data.append(obj_dict)
             
         return objs_data
@@ -236,7 +225,6 @@ class ImmudbKeyField(models.Model):
         """
             Get all objects keys that have the given transation id
         """
-        
         return [key.decode() for key in immu_client.txById(tx_id)]
 
 
@@ -245,15 +233,7 @@ class ImmudbKeyField(models.Model):
         obj_data = immu_client.verifiedGetAt(uuid.encode(), tx_id)
         
         if obj_data:
-            obj_dict = {
-                'tx_id': obj_data.id,
-                'key': obj_data.key.decode(),
-                'value': obj_data.value.decode(),
-                'verified': obj_data.verified,
-                'timestamp': obj_data.timestamp,
-                'ref_key': obj_data.refkey,
-                'revision': obj_data.revision
-            }
+            obj_dict = make_obj_with_tx(obj_data)
             return obj_dict
 
 
@@ -268,12 +248,7 @@ class ImmudbKeyField(models.Model):
             reverse
         )
         
-        return [
-            {'key': data.key.decode(), 
-             'value': data.value.decode(), 
-             'tx': data.tx} 
-            for data 
-            in history_data]
+        return make_objs_history_for_a_key(history_data)
 
     
     @classmethod
