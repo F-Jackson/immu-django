@@ -7,6 +7,7 @@ import random
 
 from immudb_connection.connection import starting_db
 from immudb.datatypes import DeleteKeysRequest
+from immudb_connection.getters import get_obj_common_infos, get_only_verified_obj
 
 from immudb_connection.setters import auth_and_get_get_fields, \
 encode_all_objs_key_value_to_saving_in_multiple, \
@@ -133,6 +134,9 @@ class ImmudbKeyField(models.Model):
     
     @classmethod
     def set_score(cls, uuid: str, collection: str, score: float):
+        """
+            Set collection and score for a object
+        """
         immu_client.zAdd(collection, uuid, score)
                     
                     
@@ -140,7 +144,7 @@ class ImmudbKeyField(models.Model):
     @classmethod
     def delete(cls, uuid: str) -> bool:
         """
-            Set the object with the given uuid as deleted inside the immu database
+            Set the object with the given uuid as deleted
         """
         
         # SET THE REQUEST FOR SET OBJECT AS DELETED INSIDE THE IMMU DATABASE
@@ -173,7 +177,6 @@ class ImmudbKeyField(models.Model):
             Get all objects inside the immu databse
         """
         
-        # Objects
         scan = immu_client.scan(b'', b'', reverse, size_limit)
         
         return {key.decode(): value.decode() for key, value in scan.items()}
@@ -181,26 +184,23 @@ class ImmudbKeyField(models.Model):
 
     @classmethod
     def get(cls, uuid_or_ref: str, only_verified: bool = False) -> dict:
+        """
+            Get the last saved object
+        """
+        
         obj_dict = {}
         
         if only_verified:
             obj_data = immu_client.verifiedGet(uuid_or_ref.encode())
             
-            obj_dict['verified'] = obj_data.verified
-            obj_dict['timestamp'] = obj_data.timestamp
-            obj_data['ref_key'] = obj_data.refkey,
+            get_only_verified_obj(obj_dict, obj_data)
         else:
             obj_data = immu_client.get(uuid_or_ref.encode())
             
         if obj_data:
-            obj_dict['key'] = obj_data.key.decode()
-            obj_dict['value'] = obj_data.value.decode()
-            obj_dict['tx_id'] = obj_data.tx
-            obj_dict['revision'] = obj_data.revision
+            get_obj_common_infos(obj_dict, obj_data)
             
             return obj_dict
-        else:
-            return None
 
 
     @classmethod
