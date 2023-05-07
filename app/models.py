@@ -113,7 +113,8 @@ class ImmudbKeyField(models.Model):
     @classmethod
     def create_mult(cls, obj_list: list[dict[str, dict, list[str], dict[str, float]]] = None):
         """
-            Create multiples objects inside the immu database in one transaction
+            Create multiples objects inside the immu database in one transaction.
+            Using this method 'expireableDateTime' in immu_confs atribute is not not applied 
         """
         
         cls.on_call()
