@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('verified', models.BooleanField(default=False)),
                 ('create_multi', models.JSONField(blank=True, null=True)),
-                ('uuid', models.CharField(default='Fj15d4oJ4Wbds96eltnqrIzTPX1V0R1Q4Wre', max_length=255)),
+                ('key', models.CharField(default='Fj15d4oJ4Wbds96eltnqrIzTPX1V0R1Q4Wre', max_length=255)),
                 ('nome', models.CharField(max_length=155)),
                 ('ok', models.IntegerField()),
             ],

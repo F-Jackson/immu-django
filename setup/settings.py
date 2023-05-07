@@ -122,3 +122,4 @@ IMMU_SESSION_EXPIRE_TIME = None
 IMMU_DEFAULT_DB = 'defaultdb'
 IMMU_USER = 'immudb'
 IMMU_PASSWORD = 'immudb'
+IMMU_PUBLIC_KEY = None

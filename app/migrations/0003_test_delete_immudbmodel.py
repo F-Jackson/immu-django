@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('app', '0002_immudbmodel_ok_immudbmodel_uuid'),
+        ('app', '0002_immudbmodel_ok_immudbmodel_key'),
     ]
 
     operations = [
@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('verified', models.BooleanField(default=False)),
                 ('create_multi', models.JSONField(blank=True, null=True)),
-                ('uuid', models.CharField(default='guvtmepYngk1nNqQ98VXZNTiJ8OdqMIzuIeR8fsfHQFmm6apjgiFBlPTVbAIzMJ3MfRYRU7rlp2gVg0F7c', max_length=255)),
+                ('key', models.CharField(default='guvtmepYngk1nNqQ98VXZNTiJ8OdqMIzuIeR8fsfHQFmm6apjgiFBlPTVbAIzMJ3MfRYRU7rlp2gVg0F7c', max_length=255)),
                 ('nome', models.CharField(max_length=155)),
                 ('ok', models.IntegerField()),
             ],

@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='immudbmodel',
-            name='uuid',
+            name='key',
             field=models.CharField(default='xjNDTuijKgo4Bm0UTwyOjQeJdSjDJxrAxRZqtYXQs2IPpGTN9xGTueHPUZnAKJabBmQpzen', max_length=255),
         ),
     ]

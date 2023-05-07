@@ -1,11 +1,11 @@
 import json
 from typing import Dict
-from django.conf import settings
 from django.db import models
 
 from immudb.datatypes import DeleteKeysRequest
 
 from immudb_connection.connection import starting_db
+from immudb_connection.constants import IMMU_CONFS_BASE_KEY_VALUE
 
 from immudb_connection.getters import get_obj_common_infos, \
 make_obj_after_other_obj, \
@@ -23,24 +23,33 @@ set_not_verified_refs_and_collections_in_multiple, \
 set_refs_to_unique, \
 set_verified_refs_and_collections_in_multiple
 
-from immudb_connection.utils import random_uuid
+from immudb_connection.utils import random_key
 
 
 immu_client = starting_db()
+databases = immu_client.databaseList()
 
+def immu_key_field_class(cls):
+    for key, value in IMMU_CONFS_BASE_KEY_VALUE.items():
+        if key not in cls.immu_confs:
+            cls.immu_confs[key] = value
+            
+    if cls.immu_confs['database'] not in databases:
+        immu_client.createDatabase(cls.immu_confs['database'])
+        
+    return cls
+
+@immu_key_field_class
 class ImmudbKeyField(models.Model):
     # DONT TOUCH
     verified = models.BooleanField(default=False)
     create_multi = models.JSONField(null=True, blank=True)
-    uuid = models.CharField(max_length=255, default=random_uuid())
+    key = models.CharField(max_length=255, default=random_key(immu_client))
     
     # ABC VARS
-    immu_confs = {
-        'expireableDateTime': settings.IMMU_DEFAULT_EXPIRE_TIME,
-    }
+    immu_confs = IMMU_CONFS_BASE_KEY_VALUE
     
-    
-    # CONFIG METHODS 
+    # CONFIG METHODS     
     class Meta:
         """
             Setting the abc class for only interact with the immu database
@@ -48,15 +57,15 @@ class ImmudbKeyField(models.Model):
         abstract = True
         managed = False
         
-    
+
     def save(self, *args, **kwargs) -> dict:
         """
             save the model inside the immu datase
         """
         # Verify if is called by multi creation if it is stop the function and auth obj per obj
         if self.create_multi is not None and self.create_multi != 'MULTI':
-            for obj_uuid, value in self.create_multi.items():
-                ImmudbKeyField.objects.create(create_multi='MULTI', uuid=obj_uuid, **value)
+            for obj_key, value in self.create_multi.items():
+                ImmudbKeyField.objects.create(create_multi='MULTI', key=obj_key, **value)
             return
         
         values = auth_and_get_get_fields(self)
@@ -67,28 +76,38 @@ class ImmudbKeyField(models.Model):
                 
         # PREPARE ALL THE DATA FOR CREATION
         json_values = json.dumps(values).encode()
-        uuid_pk = self.uuid.encode()
+        key_pk = self.key.encode()
                 
-        save_obj_in_database_to_unique(self, immu_client, uuid_pk, json_values)
+        save_obj_in_database_to_unique(self, immu_client, key_pk, json_values)
+    
+    
+    @classmethod
+    def on_call(cls):
+        immu_client.useDatabase(cls.immu_confs['database'])
     
     
     # SETTERS
     @classmethod
     def create(cls, 
-               uuid: str = None, verified: bool = False, *,
+               key: str = None, verified: bool = False, *,
                refs: list[str] = None, 
                collection_scores: Dict[str, float] = None,
                **kwargs):
         """
             Creates an object inside the immu database
+            
+            Parameters:
+            key (str): key  
         """
         
+        cls.on_call()
+        
         # CREATE OBJECT ON IMMU DATABASE
-        cls.objects.create(uuid=uuid, verified=verified,**kwargs)
+        cls.objects.create(key=key, verified=verified,**kwargs)
         
-        set_refs_to_unique(immu_client, uuid, refs, verified)
+        set_refs_to_unique(immu_client, key, refs, verified)
         
-        set_collections_to_unique(immu_client, uuid, collection_scores, verified)
+        set_collections_to_unique(immu_client, key, collection_scores, verified)
         
         
     @classmethod
@@ -96,6 +115,8 @@ class ImmudbKeyField(models.Model):
         """
             Create multiples objects inside the immu database in one transaction
         """
+        
+        cls.on_call()
         
         try:
             # AUTH ALL OBJECTS
@@ -119,45 +140,55 @@ class ImmudbKeyField(models.Model):
                     
                     
     @classmethod
-    def set_ref(cls, uuid: str, ref_key: str, verified: bool = False):
+    def set_ref(cls, key: str, ref_key: str, verified: bool = False):
         """
-            Set a ref value to a object with the given uuid
+            Set a ref value to a object with the given key
         """
         
+        cls.on_call()
+        
         if verified:
-            immu_client.verifiedSetReference(uuid.encode(), ref_key.encode())
+            immu_client.verifiedSetReference(key.encode(), ref_key.encode())
         else:
-            immu_client.setReference(uuid.encode(), ref_key.encode())
+            immu_client.setReference(key.encode(), ref_key.encode())
             
     
     @classmethod
-    def set_score(cls, uuid: str, collection: str, score: float):
+    def set_score(cls, key: str, collection: str, score: float):
         """
             Set collection and score for a object
         """
-        immu_client.zAdd(collection, uuid, score)
+        
+        cls.on_call()
+        
+        immu_client.zAdd(collection, key, score)
                     
                     
     # DELETTER                     
     @classmethod
-    def delete(cls, uuid: str) -> bool:
+    def delete(cls, key: str) -> bool:
         """
-            Set the object with the given uuid as deleted
+            Set the object with the given key as deleted
         """
         
+        cls.on_call()
+        
         # SET THE REQUEST FOR SET OBJECT AS DELETED INSIDE THE IMMU DATABASE
-        deleteRequest = DeleteKeysRequest(keys=[uuid.encode()])
+        deleteRequest = DeleteKeysRequest(keys=[key.encode()])
         
         return immu_client.delete(deleteRequest)
 
 
     # GETTERS
     @classmethod
-    def after(cls, uuid: str, tx_id: int, step: int = 0) -> dict:
+    def after(cls, key: str, tx_id: int, step: int = 0) -> dict:
         """
-            Get the object after the uuid and transation id
+            Get the object after the key and transation id
         """
-        obj_data = immu_client.verifiedGetSince(uuid.encode(), tx_id + step)
+        
+        cls.on_call()
+        
+        obj_data = immu_client.verifiedGetSince(key.encode(), tx_id + step)
         
         if obj_data:
             return make_obj_after_other_obj(obj_data)
@@ -169,25 +200,29 @@ class ImmudbKeyField(models.Model):
             Get all objects inside the immu databse
         """
         
+        cls.on_call()
+        
         scan = immu_client.scan(b'', b'', reverse, size_limit)
         
         return {key.decode(): value.decode() for key, value in scan.items()}
 
 
     @classmethod
-    def get(cls, uuid_or_ref: str, only_verified: bool = False) -> dict:
+    def get(cls, key_or_ref: str, only_verified: bool = False) -> dict:
         """
             Get the last saved object
         """
         
+        cls.on_call()
+        
         obj_dict = {}
         
         if only_verified:
-            obj_data = immu_client.verifiedGet(uuid_or_ref.encode())
+            obj_data = immu_client.verifiedGet(key_or_ref.encode())
             
             get_only_verified_obj(obj_dict, obj_data)
         else:
-            obj_data = immu_client.get(uuid_or_ref.encode())
+            obj_data = immu_client.get(key_or_ref.encode())
             
         if obj_data:
             get_obj_common_infos(obj_dict, obj_data)
@@ -197,15 +232,18 @@ class ImmudbKeyField(models.Model):
 
     @classmethod
     def get_score(cls, collection: str, tx_id: int = None, 
-                  uuid: str = '', score: float = None,
+                  key: str = '', score: float = None,
                   reverse: bool = True, 
                   min_score: float = 0, max_score: float = 1_000, 
                   size_limit: int = 1_000, inclusive_seek: bool = True) -> list[dict[str, float, int, dict, int]]:
         """
             Get objects based on a collection using scores
         """
+        
+        cls.on_call()
+        
         collection_data = immu_client.zScan(
-            zset=collection.encode(), seekKey=uuid.encode(), 
+            zset=collection.encode(), seekKey=key.encode(), 
             seekScore=score, seekAtTx=tx_id,
             inclusive=inclusive_seek, limit=size_limit,
             desc=reverse,
@@ -226,16 +264,21 @@ class ImmudbKeyField(models.Model):
         """
             Get all objects keys that have the given transation id
         """
+        
+        cls.on_call()
+        
         return [key.decode() for key in immu_client.txById(tx_id)]
 
 
     @classmethod
-    def get_with_tx(cls, uuid: str, tx_id: int) -> dict:
+    def get_with_tx(cls, key: str, tx_id: int) -> dict:
         """
             Get a only verified obj using a key and transtion id
         """
         
-        obj_data = immu_client.verifiedGetAt(uuid.encode(), tx_id)
+        cls.on_call()
+        
+        obj_data = immu_client.verifiedGetAt(key.encode(), tx_id)
         
         if obj_data:
             obj_dict = make_obj_with_tx(obj_data)
@@ -243,15 +286,17 @@ class ImmudbKeyField(models.Model):
 
 
     @classmethod
-    def history(cls, uuid: str, 
+    def history(cls, key: str, 
                 size_limit: int = 1_000, starting_in: int = 0, 
                 reverse: bool = True) -> list[dict]:
         """
             Get the history objects for a key
         """
         
+        cls.on_call()
+        
         history_data = immu_client.history(
-            uuid.encode(), 
+            key.encode(), 
             starting_in, 
             size_limit, 
             reverse
@@ -261,16 +306,18 @@ class ImmudbKeyField(models.Model):
 
     
     @classmethod
-    def starts_with(cls, uuid: str = '', 
+    def starts_with(cls, key: str = '', 
                     prefix: str = '', size_limit: int = 1_000, 
                     reverse: bool = True) -> dict[str, str]:
         """
             Get all objects that the key starts with the given prefix
         """
         
+        cls.on_call()
+        
         # Objects
         scan = immu_client.scan(
-            uuid.encode(), prefix.encode(), 
+            key.encode(), prefix.encode(), 
             reverse, size_limit
         )
         

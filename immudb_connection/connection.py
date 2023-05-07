@@ -1,17 +1,20 @@
 from django.conf import settings
 from immudb.client import ImmudbClient
-from immudb.constants import PERMISSION_SYS_ADMIN, \
-PERMISSION_ADMIN, \
-PERMISSION_NONE, \
-PERMISSION_R, \
-PERMISSION_RW
 
 from .exceptions import LoginError, LogoutError
 
 def starting_db() -> ImmudbClient:
     try:
-        client = ImmudbClient(settings.IMMU_URL)
+        client = ImmudbClient(settings.IMMU_URL, 
+                              publicKeyFile=settings.IMMU_PUBLIC_KEY)
         client.login(settings.IMMU_USER, settings.IMMU_PASSWORD)
+        ###
+        # client.databaseList()
+        # client.createDatabase()
+        # # client.loadDatabase()
+        # # client.unloadDatabase()
+        # client.useDatabase()
+        ###
     except Exception as e:
         raise LoginError(f'Error while trying to login the client, error: {str(e)}')
     else:

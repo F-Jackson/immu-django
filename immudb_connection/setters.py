@@ -17,43 +17,43 @@ def auth_and_get_get_fields(self) -> Dict[str, dict]:
     return values
 
 
-def save_obj_in_database_to_unique(self, immu_client, uuid: bytes, json_values: bytes):
+def save_obj_in_database_to_unique(self, immu_client, key: bytes, json_values: bytes):
     if self.immu_confs['expireableDateTime'] is not None:
         expireTime = now() + timedelta(**self.immu_confs['expireableDateTime'])
         
-        immu_client.expireableSet(uuid, json_values, expireTime)
+        immu_client.expireableSet(key, json_values, expireTime)
     elif self.verified:
-        immu_client.verifiedSet(uuid, json_values)
+        immu_client.verifiedSet(key, json_values)
     else:
-        immu_client.set(uuid, json_values)
+        immu_client.set(key, json_values)
 
 
 # SET ONE
-def set_refs_to_unique(immu_client, uuid: str, refs: list[str], verified: bool):
+def set_refs_to_unique(immu_client, key: str, refs: list[str], verified: bool):
     if refs is not None:
         if verified:
             for ref in refs:
-                immu_client.verifiedSetReference(uuid.encode(), ref.encode())
+                immu_client.verifiedSetReference(key.encode(), ref.encode())
         else:
             for ref in refs:
-                immu_client.setReference(uuid.encode(), ref.encode())
+                immu_client.setReference(key.encode(), ref.encode())
                 
                 
-def set_collections_to_unique(immu_client, uuid: str, collection_scores: Dict[str, float], verified: bool):
+def set_collections_to_unique(immu_client, key: str, collection_scores: Dict[str, float], verified: bool):
     if collection_scores is not None:
         if verified:
             for ref, score in collection_scores.items():
-                immu_client.VerifiedZAdd(ref.encode(), score, uuid.encode())
+                immu_client.VerifiedZAdd(ref.encode(), score, key.encode())
         else:
             for ref, score in collection_scores.items():
-                immu_client.zAdd(ref.encode(), score, uuid.encode())
+                immu_client.zAdd(ref.encode(), score, key.encode())
 
 
 # SET MULTI
 def get_all_objs_key_value_in_multiple(obj_list: list[dict[str, dict, list[str], dict[str, float]]]) -> Dict[str, dict]:
     objs = {}
     for obj in obj_list:
-        objs[obj['uuid']] = obj['values']
+        objs[obj['key']] = obj['values']
     return objs
 
 
@@ -64,18 +64,18 @@ def encode_all_objs_key_value_to_saving_in_multiple(objs: Dict[str, dict]) -> Di
 def set_verified_refs_and_collections_in_multiple(immu_client, obj: dict):
     if 'refs' in obj:
         for ref in obj['refs']:
-            immu_client.verifiedSetReference(obj['uuid'].encode(), ref.encode())
+            immu_client.verifiedSetReference(obj['key'].encode(), ref.encode())
 
     if 'collection_scores' in obj:
         for ref, score in obj['collection_scores'].items():
-            immu_client.verifiedZAdd(ref.encode(), score, obj['uuid'].encode())
+            immu_client.verifiedZAdd(ref.encode(), score, obj['key'].encode())
             
             
 def set_not_verified_refs_and_collections_in_multiple(immu_client, obj: dict):
     if 'refs' in obj:
         for ref in obj['refs']:
-            immu_client.setReference(obj['uuid'].encode(), ref.encode())
+            immu_client.setReference(obj['key'].encode(), ref.encode())
     
     if 'collection_scores' in obj:
         for ref, score in obj['collection_scores'].items():
-            immu_client.zAdd(ref.encode(), score, obj['uuid'].encode())
+            immu_client.zAdd(ref.encode(), score, obj['key'].encode())
