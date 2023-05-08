@@ -69,7 +69,8 @@ class ImmudbKeyField(models.Model):
         # Verify if is called by multi creation if it is stop the function and auth obj per obj
         if self.create_multi is not None and self.create_multi != 'MULTI':
             for obj_key, value in self.create_multi.items():
-                ImmudbKeyField.objects.create(create_multi='MULTI', key=obj_key, **value)
+                cls = type(self)
+                cls.objects.create(create_multi='MULTI', key=obj_key, **value)
             return
         
         values = auth_and_get_get_fields(self)
@@ -349,8 +350,8 @@ def immu_sql_class(cls):
         
     return cls
 
-# class Test(models.Model):
-#     name = models.CharField(max_length=200, primary_key=True)
+class Test(models.Model):
+    nome = models.CharField(max_length=200, primary_key=True)
 
 @immu_sql_class
 class ImmudbSQL(models.Model):

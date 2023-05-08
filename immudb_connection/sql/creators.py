@@ -57,9 +57,9 @@ class TableCreator:
         
         for field in self.cls._meta.fields:
             if isinstance(field, ForeignKey):
-                db_field = self._make_foreign_key_field(field, self.connection, db_fields)
+                db_field = self._make_foreign_key_field(field, db_fields)
             else:
-                db_field = self._make_normal_field(field, self.connection)
+                db_field = self._make_normal_field(field)
             
             pk = self._make_pk_field(field)
             
@@ -75,6 +75,6 @@ class TableCreator:
         pk = self._verify_pk_null(pk, db_fields)
         db_fields.append(pk)
         
-        self._send_sql_exec(self.immu_client, db_fields, self.table_name)
+        self._send_sql_exec(db_fields)
         
         return db_fields
