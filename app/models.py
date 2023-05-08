@@ -24,7 +24,7 @@ set_collections_to_unique, \
 set_not_verified_refs_and_collections_in_multiple, \
 set_refs_to_unique, \
 set_verified_refs_and_collections_in_multiple
-from immudb_connection.sql.creators import create_table
+from immudb_connection.sql.creators import TableCreator
 
 from immudb_connection.utils import lowercase_and_add_space, random_key
 
@@ -333,7 +333,8 @@ def immu_sql_class(cls):
     table_name = f'{apps.get_containing_app_config(cls.__module__).label}_{lowercase_and_add_space(cls.__name__)}'
     
     # CREATE TABLE
-    db_fields = create_table(cls, immu_client, connection, table_name)
+    table_creator = TableCreator(cls, immu_client, connection, table_name)
+    db_fields = table_creator.create_table()
     
     # ALTER TABLE
     tables = immu_client.sqlQuery(f"""
@@ -348,8 +349,8 @@ def immu_sql_class(cls):
         
     return cls
 
-class Test(models.Model):
-    name = models.CharField(max_length=200, primary_key=True)
+# class Test(models.Model):
+#     name = models.CharField(max_length=200, primary_key=True)
 
 @immu_sql_class
 class ImmudbSQL(models.Model):
