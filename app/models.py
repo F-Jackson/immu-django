@@ -1,6 +1,9 @@
 import json
 from typing import Dict
 from django.db import models
+from django.apps import apps
+from django.db import DEFAULT_DB_ALIAS, connections
+from django.db.models.fields.related import ForeignKey
 
 from immudb.datatypes import DeleteKeysRequest
 
@@ -23,13 +26,14 @@ set_not_verified_refs_and_collections_in_multiple, \
 set_refs_to_unique, \
 set_verified_refs_and_collections_in_multiple
 
-from immudb_connection.utils import random_key
+from immudb_connection.utils import lowercase_and_add_space, random_key
 
 
 immu_client = starting_db()
 databases = immu_client.databaseList()
+connection = connections[DEFAULT_DB_ALIAS]
 
-def immu_key_field_class(cls):
+def immu_key_value_class(cls):
     for key, value in IMMU_CONFS_BASE_KEY_VALUE.items():
         if key not in cls.immu_confs:
             cls.immu_confs[key] = value
@@ -39,7 +43,7 @@ def immu_key_field_class(cls):
         
     return cls
 
-@immu_key_field_class
+@immu_key_value_class
 class ImmudbKeyField(models.Model):
     # DONT TOUCH
     verified = models.BooleanField(default=False)
@@ -325,9 +329,57 @@ class ImmudbKeyField(models.Model):
         return {key.decode(): value.decode() for key, value in scan.items()}
 
 
+def immu_sql_class(cls):
+    # CREATE TABLE
+    db_name = f'{apps.get_containing_app_config(cls.__module__).label}_{lowercase_and_add_space(cls.__name__)}'
+    
+    db_fields = []
+    pk = ''
+    
+    for field in cls._meta.fields:
+        if isinstance(field, ForeignKey):
+            db_on_delete_field = f'{field.name}_on_delete_{field.remote_field.on_delete.__name__} BOOLEAN'
+            fg_pk = [field for field in field.target_field.model._meta.fields if field.primary_key]
+            db_field = f'{field.attname} {fg_pk[0].db_type(connection).replace("(", "[").replace(")", "]").upper()}'
 
+            db_fields.append(db_on_delete_field)
+        else:
+            db_field = f'{field.attname} {field.db_type(connection).replace("(", "[").replace(")", "]").upper()}'
+            if field.primary_key:
+                pk = f'PRIMARY KEY({field.attname})'
+                
+        if not field.null:
+            db_field += ' NOT NULL'
+        if isinstance(field, models.AutoField):
+                db_field += ' AUTO_INCREMENT'
+            
+        db_fields.append(db_field)
+        
+    db_fields.append('created_at TIMESTAMP NOT NULL')
+    db_fields.append(pk)
+    db_fields_str = ', '.join(db_fields)
+    
+    # ALTER TABLE
+    tables = immu_client.sqlQuery(f"""
+        SELECT * FROM COLUMNS('{db_name}');
+    """)
+    
+    print(tables)
+    
+    exec_str = f'CREATE TABLE IF NOT EXISTS {db_name}({db_fields_str});'
+    
+    immu_client.sqlExec(exec_str)
+    return cls
 
-class ImmudbSQL(models.Model):    
+class Test(models.Model):
+    name = models.CharField(max_length=200, primary_key=True)
+
+@immu_sql_class
+class ImmudbSQL(models.Model):
+    name = models.CharField(max_length=255)
+    number = models.BigAutoField(primary_key=True)
+    foreing = models.ForeignKey(Test, on_delete=models.CASCADE)
+    
     # ABC VARS
     immu_confs = IMMU_CONFS_BASE_KEY_VALUE
     
@@ -349,6 +401,7 @@ class ImmudbSQL(models.Model):
         immu_client.useDatabase(cls.immu_confs['database'])
         
         
+    # SETTER
     @classmethod
     def create(cls, **kwargs):
         pass
@@ -357,7 +410,8 @@ class ImmudbSQL(models.Model):
     def create_mult(cls, obj_list: list[dict]):
         pass    
         
-        
+    
+    # GETTER
     @classmethod
     def get(cls, order_by: list[str] = None, **kwargs):
         pass
@@ -378,11 +432,13 @@ class ImmudbSQL(models.Model):
         pass
     
     
+    # BOOL
     @classmethod
     def exists(cls, **kwargs):
         pass
     
     
+    # DELETTER
     @classmethod
     def delete(cls, size: int = 1, **kwargs):
         pass
