@@ -5,16 +5,16 @@ from django.db import models
 from immudb.datatypes import DeleteKeysRequest
 
 from immudb_connection.connection import starting_db
-from immudb_connection.constants import IMMU_CONFS_BASE_KEY_VALUE
+from immudb_connection.key_value.constants import IMMU_CONFS_BASE_KEY_VALUE
 
-from immudb_connection.getters import get_obj_common_infos, \
+from immudb_connection.key_value.getters import get_obj_common_infos, \
 make_obj_after_other_obj, \
 make_obj_with_tx, \
 get_only_verified_obj, \
 make_objs_history_for_a_key, \
 make_objs_on_collection
 
-from immudb_connection.setters import auth_and_get_get_fields, \
+from immudb_connection.key_value.setters import auth_and_get_get_fields, \
 encode_all_objs_key_value_to_saving_in_multiple, \
 get_all_objs_key_value_in_multiple, \
 save_obj_in_database_to_unique, \
@@ -65,7 +65,7 @@ class ImmudbKeyValue(models.Model):
         # Verify if is called by multi creation if it is stop the function and auth obj per obj
         if self.create_multi is not None and self.create_multi != 'MULTI':
             for obj_key, value in self.create_multi.items():
-                ImmudbKeyField.objects.create(create_multi='MULTI', key=obj_key, **value)
+                ImmudbKeyValue.objects.create(create_multi='MULTI', key=obj_key, **value)
             return
         
         values = auth_and_get_get_fields(self)

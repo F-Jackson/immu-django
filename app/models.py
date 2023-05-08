@@ -3,21 +3,20 @@ from typing import Dict
 from django.db import models
 from django.apps import apps
 from django.db import DEFAULT_DB_ALIAS, connections
-from django.db.models.fields.related import ForeignKey
 
 from immudb.datatypes import DeleteKeysRequest
 
 from immudb_connection.connection import starting_db
-from immudb_connection.constants import IMMU_CONFS_BASE_KEY_VALUE
+from immudb_connection.key_value.constants import IMMU_CONFS_BASE_KEY_VALUE
 
-from immudb_connection.getters import get_obj_common_infos, \
+from immudb_connection.key_value.getters import get_obj_common_infos, \
 make_obj_after_other_obj, \
 make_obj_with_tx, \
 get_only_verified_obj, \
 make_objs_history_for_a_key, \
 make_objs_on_collection
 
-from immudb_connection.setters import auth_and_get_get_fields, \
+from immudb_connection.key_value.setters import auth_and_get_get_fields, \
 encode_all_objs_key_value_to_saving_in_multiple, \
 get_all_objs_key_value_in_multiple, \
 save_obj_in_database_to_unique, \
@@ -25,6 +24,7 @@ set_collections_to_unique, \
 set_not_verified_refs_and_collections_in_multiple, \
 set_refs_to_unique, \
 set_verified_refs_and_collections_in_multiple
+from immudb_connection.sql.creators import create_table
 
 from immudb_connection.utils import lowercase_and_add_space, random_key
 
@@ -330,45 +330,22 @@ class ImmudbKeyField(models.Model):
 
 
 def immu_sql_class(cls):
+    table_name = f'{apps.get_containing_app_config(cls.__module__).label}_{lowercase_and_add_space(cls.__name__)}'
+    
     # CREATE TABLE
-    db_name = f'{apps.get_containing_app_config(cls.__module__).label}_{lowercase_and_add_space(cls.__name__)}'
-    
-    db_fields = []
-    pk = ''
-    
-    for field in cls._meta.fields:
-        if isinstance(field, ForeignKey):
-            db_on_delete_field = f'{field.name}_on_delete_{field.remote_field.on_delete.__name__} BOOLEAN'
-            fg_pk = [field for field in field.target_field.model._meta.fields if field.primary_key]
-            db_field = f'{field.attname} {fg_pk[0].db_type(connection).replace("(", "[").replace(")", "]").upper()}'
-
-            db_fields.append(db_on_delete_field)
-        else:
-            db_field = f'{field.attname} {field.db_type(connection).replace("(", "[").replace(")", "]").upper()}'
-            if field.primary_key:
-                pk = f'PRIMARY KEY({field.attname})'
-                
-        if not field.null:
-            db_field += ' NOT NULL'
-        if isinstance(field, models.AutoField):
-                db_field += ' AUTO_INCREMENT'
-            
-        db_fields.append(db_field)
-        
-    db_fields.append('created_at TIMESTAMP NOT NULL')
-    db_fields.append(pk)
-    db_fields_str = ', '.join(db_fields)
+    db_fields = create_table(cls, immu_client, connection, table_name)
     
     # ALTER TABLE
     tables = immu_client.sqlQuery(f"""
-        SELECT * FROM COLUMNS('{db_name}');
+        SELECT * FROM COLUMNS('{table_name}');
     """)
     
     print(tables)
-    
-    exec_str = f'CREATE TABLE IF NOT EXISTS {db_name}({db_fields_str});'
-    
-    immu_client.sqlExec(exec_str)
+    for table in tables:
+        field_name = table[1]
+        field_type = table[2]
+        field_bytes = table[3]
+        
     return cls
 
 class Test(models.Model):
@@ -376,7 +353,7 @@ class Test(models.Model):
 
 @immu_sql_class
 class ImmudbSQL(models.Model):
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, null=True)
     number = models.BigAutoField(primary_key=True)
     foreing = models.ForeignKey(Test, on_delete=models.CASCADE)
     
