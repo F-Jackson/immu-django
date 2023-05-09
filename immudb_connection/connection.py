@@ -1,12 +1,13 @@
 from django.conf import settings
-from immudb.client import ImmudbClient
+from immudb.client import ImmudbClient, PersistentRootService
 
 from .exceptions import LoginError, LogoutError
 
 def starting_db() -> ImmudbClient:
     try:
         client = ImmudbClient(settings.IMMU_URL, 
-                              publicKeyFile=settings.IMMU_PUBLIC_KEY)
+                              publicKeyFile=settings.IMMU_PUBLIC_KEY,
+                              rs=PersistentRootService())
         client.login(settings.IMMU_USER, settings.IMMU_PASSWORD)
         ###
         # client.databaseList()

@@ -1,11 +1,13 @@
 from django.db.models.fields.related import ForeignKey
 from django.db.models import AutoField
+from django.db import DEFAULT_DB_ALIAS, connections
 
+
+connection = connections[DEFAULT_DB_ALIAS]
 
 class TableCreator:
-    def __init__(self, cls, immu_client, connection, table_name) -> None:
-        self.immu_client = immu_client,
-        self.connection = connection,
+    def __init__(self, cls, immu_client, table_name) -> None:
+        self.immu_client = immu_client
         self.table_name = table_name
         self.cls = cls
     
@@ -15,7 +17,7 @@ class TableCreator:
         
         fg_pk = [field for field in field.target_field.model._meta.fields if field.primary_key]
         
-        db_field = f'{field.attname} {fg_pk[0].db_type(self.connection).replace("(", "[").replace(")", "]").upper()}'
+        db_field = f'{field.attname} {fg_pk[0].db_type(connection).replace("(", "[").replace(")", "]").upper()}'
 
         db_fields.append(db_on_delete_field)
         
@@ -23,15 +25,16 @@ class TableCreator:
 
 
     def _make_normal_field(self, field) -> str:
-        db_field = f'{field.attname} {field.db_type(self.connection).replace("(", "[").replace(")", "]").upper()}'
+        db_field = f'{field.attname} {field.db_type(connection).replace("(", "[").replace(")", "]").upper()}'
         
         return db_field
 
 
     def _make_pk_field(self, field) -> str:
         if field.primary_key:
-            pk = f'PRIMARY KEY({field.attname})'
-        return pk
+            pk = f'PRIMARY KEY {field.attname}'
+            
+            return pk
 
 
     def _verify_pk_null(self, pk: str | None, db_fields: list[str]) -> str:
@@ -61,7 +64,8 @@ class TableCreator:
             else:
                 db_field = self._make_normal_field(field)
             
-            pk = self._make_pk_field(field)
+            if pk is None:
+                pk = self._make_pk_field(field)
             
             if not field.null:
                 db_field += ' NOT NULL'
@@ -75,6 +79,7 @@ class TableCreator:
         pk = self._verify_pk_null(pk, db_fields)
         db_fields.append(pk)
         
+        print(db_fields)
         self._send_sql_exec(db_fields)
         
         return db_fields

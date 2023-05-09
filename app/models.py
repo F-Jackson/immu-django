@@ -2,7 +2,6 @@ import json
 from typing import Dict
 from django.db import models
 from django.apps import apps
-from django.db import DEFAULT_DB_ALIAS, connections
 
 from immudb.datatypes import DeleteKeysRequest
 
@@ -31,7 +30,6 @@ from immudb_connection.utils import lowercase_and_add_space, random_key
 
 immu_client = starting_db()
 databases = immu_client.databaseList()
-connection = connections[DEFAULT_DB_ALIAS]
 
 def immu_key_value_class(cls):
     for key, value in IMMU_CONFS_BASE_KEY_VALUE.items():
@@ -334,7 +332,7 @@ def immu_sql_class(cls):
     table_name = f'{apps.get_containing_app_config(cls.__module__).label}_{lowercase_and_add_space(cls.__name__)}'
     
     # CREATE TABLE
-    table_creator = TableCreator(cls, immu_client, connection, table_name)
+    table_creator = TableCreator(cls, immu_client, table_name)
     db_fields = table_creator.create_table()
     
     # ALTER TABLE
@@ -347,6 +345,11 @@ def immu_sql_class(cls):
         field_name = table[1]
         field_type = table[2]
         field_bytes = table[3]
+        field_nullable = table[4]
+        field_auto_increment = table[5]
+        field_indexed = table[6]
+        field_primary_key = table[7]
+        field_unique = table[8]
         
     return cls
 
@@ -355,9 +358,12 @@ class Test(models.Model):
 
 @immu_sql_class
 class ImmudbSQL(models.Model):
-    name = models.CharField(max_length=255, null=True)
-    number = models.BigAutoField(primary_key=True)
-    foreing = models.ForeignKey(Test, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255, primary_key=True)
+    # number = models.BigAutoField(null=True)
+    foreing = models.ForeignKey(Test, on_delete=models.CASCADE, null=True)
+    tt = models.IntegerField(null=True)
+    pp = models.IntegerField(default=1)
+    po = models.CharField(default='o', max_length=255, null=True)
     
     # ABC VARS
     immu_confs = IMMU_CONFS_BASE_KEY_VALUE
