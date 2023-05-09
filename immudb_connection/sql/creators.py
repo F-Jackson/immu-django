@@ -30,20 +30,22 @@ class TableCreator:
         return db_field
 
 
-    def _make_pk_field(self, field) -> str:
+    def _make_pk_field(self, field, pk) -> str:
         if field.primary_key:
-            pk = f'PRIMARY KEY {field.attname}'
+            new_pk = field.attname
             
-            return pk
+            pk.append(new_pk)
 
 
-    def _verify_pk_null(self, pk: str | None, db_fields: list[str]) -> str:
-        if pk is None:
+    def _verify_pk_null(self, pk: str | None, db_fields: list[str]):
+        if len(pk) == 0:
             field = '_id INTEGER NOT NULL AUTO_INCREMENT'
             db_fields.append(field)
             pk = 'PRIMARY KEY _id'
+        else:
+            pk = f'PRIMARY KEY ({", ".join(pk)})'
         
-        return pk
+        db_fields.append(pk)
 
 
     def _send_sql_exec(self, db_fields: list[str]):
@@ -56,7 +58,7 @@ class TableCreator:
 
     def create_table(self) -> list[str]:
         db_fields = []
-        pk = None
+        pk = []
         
         for field in self.cls._meta.fields:
             if isinstance(field, ForeignKey):
@@ -64,8 +66,7 @@ class TableCreator:
             else:
                 db_field = self._make_normal_field(field)
             
-            if pk is None:
-                pk = self._make_pk_field(field)
+            self._make_pk_field(field, pk)
             
             if not field.null:
                 db_field += ' NOT NULL'
@@ -76,10 +77,8 @@ class TableCreator:
             
         db_fields.append('created_at TIMESTAMP NOT NULL')
         
-        pk = self._verify_pk_null(pk, db_fields)
-        db_fields.append(pk)
+        self._verify_pk_null(pk, db_fields)
         
-        print(db_fields)
         self._send_sql_exec(db_fields)
         
         return db_fields
