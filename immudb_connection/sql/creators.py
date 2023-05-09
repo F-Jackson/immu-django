@@ -13,7 +13,7 @@ class TableCreator:
     
     
     def _make_foreign_key_field(self, field, db_fields: list[str]) -> str:
-        db_on_delete_field = f'{field.name}_on_delete_{field.remote_field.on_delete.__name__} BOOLEAN'
+        db_on_delete_field = f'{field.name}_on_delete_{field.remote_field.on_delete.__name__.lower()} BOOLEAN'
         
         fg_pk = [field for field in field.target_field.model._meta.fields if field.primary_key]
         
@@ -40,7 +40,7 @@ class TableCreator:
     def _verify_pk_null(self, pk: str | None, db_fields: list[str]):
         if len(pk) == 0:
             field = '_id INTEGER NOT NULL AUTO_INCREMENT'
-            db_fields.append(field)
+            db_fields.insert(0, field)
             pk = 'PRIMARY KEY _id'
         else:
             pk = f'PRIMARY KEY ({", ".join(pk)})'
@@ -74,8 +74,6 @@ class TableCreator:
                 db_field += ' AUTO_INCREMENT'
                 
             db_fields.append(db_field)
-            
-        db_fields.append('created_at TIMESTAMP NOT NULL')
         
         self._verify_pk_null(pk, db_fields)
         
