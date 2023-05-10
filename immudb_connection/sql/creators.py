@@ -1,5 +1,5 @@
 from django.db.models.fields.related import ForeignKey
-from django.db.models import AutoField
+from django.db.models import AutoField, JSONField
 from django.db import DEFAULT_DB_ALIAS, connections
 
 
@@ -14,22 +14,36 @@ class TableCreator:
             table[0] for table in 
             immu_client.sqlQuery('SELECT * FROM TABLES();')
         ]
+        
+        self.json_fields = []
     
     
-    def _make_foreign_key_field(self, field, db_fields: list[str]) -> str:
-        db_on_delete_field = f'{field.name}_on_delete_{field.remote_field.on_delete.__name__.lower()} BOOLEAN'
+    def _make_foreign_key_field(
+        self, field, 
+        db_fields: list[str], pks: list[str]):        
+        fg_pks = [
+            field for field in 
+            field.target_field.model._meta.fields 
+            if field.primary_key
+        ]
         
-        fg_pk = [field for field in field.target_field.model._meta.fields if field.primary_key]
-        
-        db_field = f'{field.attname} {fg_pk[0].db_type(connection).replace("(", "[").replace(")", "]").upper()}'
-
-        db_fields.append(db_on_delete_field)
-        
-        return db_field
+        for fg_pk in fg_pks:
+            field_name = f'{field.name}_{fg_pk.name}__fg'
+            db_field = f'{field_name} '\
+                f'{fg_pk.db_type(connection).replace("(", "[").replace(")", "]").upper()}'
+            
+            if not field.null:
+                db_field += ' NOT NULL'
+                
+            db_fields.append(db_field)
+            
+            if field.primary_key:
+                pks.append(field_name)
 
 
     def _make_normal_field(self, field) -> str:
-        db_field = f'{field.attname} {field.db_type(connection).replace("(", "[").replace(")", "]").upper()}'
+        db_field = f'{field.attname} ' \
+        f'{field.db_type(connection).replace("(", "[").replace(")", "]").upper()}'
         
         return db_field
 
@@ -52,6 +66,12 @@ class TableCreator:
         db_fields.append(pk)
 
 
+    def _make_jsons_fields(self, db_fields: list[str]):        
+        for field in self.json_fields:
+            name = f'__json__{field.attname}'
+            db_fields.append(name)    
+
+
     def _send_sql_exec(self, db_fields: list[str]):
         db_fields_str = ', '.join(db_fields)
         
@@ -71,22 +91,26 @@ class TableCreator:
         
         for field in self.cls._meta.fields:
             if isinstance(field, ForeignKey):
-                db_field = self._make_foreign_key_field(field, db_fields)
+                self._make_foreign_key_field(field, db_fields, pk)
+            elif isinstance(field, JSONField):
+                self.json_fields.append(field)
             else:
                 db_field = self._make_normal_field(field)
-            
-            self._make_pk_field(field, pk)
-            
-            if not field.null:
-                db_field += ' NOT NULL'
-            if isinstance(field, AutoField):
-                db_field += ' AUTO_INCREMENT'
                 
-            db_fields.append(db_field)
+                if not field.null:
+                    db_field += ' NOT NULL'
+                if isinstance(field, AutoField):
+                    db_field += ' AUTO_INCREMENT'
+                    
+                db_fields.append(db_field)
+            
+                self._make_pk_field(field, pk)
         
         self._verify_pk_null(pk, db_fields)
         
         self._send_sql_exec(db_fields)
+        
+        self._make_jsons_fields(db_fields)
         
         self._send_succes_msg()
         

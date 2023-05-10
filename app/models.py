@@ -28,6 +28,8 @@ from immudb_connection.sql.creators import TableCreator
 
 from immudb_connection.utils import lowercase_and_add_space, random_key
 
+from django.db.models.fields.related import ForeignKey
+
 
 immu_client = starting_db()
 databases = immu_client.databaseList()
@@ -344,19 +346,24 @@ def immu_sql_class(cls):
 
 class Test(models.Model):
     nome = models.CharField(max_length=200, primary_key=True)
+    number = models.IntegerField(primary_key=True)
 
 @immu_sql_class
 class ImmudbSQL(models.Model):
     name = models.CharField(max_length=255, primary_key=True)
     # number = models.BigAutoField(null=True)
-    foreing = models.ForeignKey(Test, on_delete=models.CASCADE, null=True)
+    foreing = models.ForeignKey(Test, on_delete=models.CASCADE, primary_key=True)
     tt = models.IntegerField(null=True)
     pp = models.IntegerField(default=1)
     po = models.CharField(default='o', max_length=255, null=True)
-    okk2 = models.IntegerField(primary_key=True)
-    lo = models.IntegerField()
+    okk2 = models.IntegerField(null=True)
+    lo = models.IntegerField(null=True)
     ok = models.IntegerField(null=True)
-    test = models.IntegerField(null=True)
+    test6 = models.JSONField()
+    po1 = models.IntegerField(null=True)
+    test4 = models.JSONField()
+    kp = models.ForeignKey(Test, on_delete=models.CASCADE, null=True)
+    
     
     # ABC VARS
     immu_confs = IMMU_CONFS_BASE_KEY_VALUE
@@ -382,7 +389,63 @@ class ImmudbSQL(models.Model):
     # SETTER
     @classmethod
     def create(cls, **kwargs):
-        pass
+        model_fields = []
+        value_fields = []
+        
+        for field in cls._meta.fields:
+            if isinstance(field, ForeignKey):
+                fg_pks = [
+                    field for field in 
+                    field.target_field.model._meta.fields 
+                    if field.primary_key
+                ]
+                
+                for fg_pk in fg_pks:
+                    field_name = f'{field.name}_{fg_pk.name}__fg'
+                    model_fields.append(field_name)
+                    value_fields.append(f'@{field_name}')
+            elif isinstance(field, models.JSONField):
+                model_fields.append(f'__json__{field.name}')
+                value_fields.append(f'@__json__{field.name}')
+            else:
+                model_fields.append(field.attname)
+                value_fields.append(f'@{field.attname}')
+                
+        value_fields = ', '.join(value_fields)
+        model_fields = ', '.join(model_fields)
+        
+        new_insert = f'INSERT INTO {cls.immu_confs["_tablename"]} ({model_fields}) ' \
+            f'VALUES ({value_fields});'
+            
+        values = {}
+        for key, value in kwargs:
+            #json
+            # get last field to get auincrement higher value
+            # primarys keys values
+            
+            # foreign key
+            # get obj primary key values
+            if :
+                obj_pks = [
+                    field for field in 
+                    type(value)._meta.fields 
+                    if field.primary_key
+                ]
+                
+                for pk in obj_pks:
+                    name = f'{key}_{pk.name}__fg'
+                    values[name] = getattr(value, pk.name)
+            
+            # normal
+            # get value
+            else:
+                values[key] = value
+            
+        resp = immu_client.sqlExec(f"""
+            BEGIN TRANSACTION;
+                {new_insert}
+            COMMIT;
+        """, values)
     
     @classmethod
     def create_mult(cls, obj_list: list[dict]):
@@ -396,8 +459,19 @@ class ImmudbSQL(models.Model):
     
     
     @classmethod
-    def all(cls, order_by: list[str] = None):
-        pass
+    def all(
+        cls, order_by: list[str] = None, 
+        get_foreign_keys_objects: bool = False, 
+        reverse: bool = True) -> list[dict]:
+        res = immu_client.sqlQuery(
+            f'SELECT * FROM {cls.immu_confs["_tablename"]} ORDER BY {order_by} {"DESC" if reverse else "ASC"};'
+        )
+        
+        
+        if get_foreign_keys_objects:
+            pass
+        
+        return res
     
     
     @classmethod
@@ -415,9 +489,4 @@ class ImmudbSQL(models.Model):
     def exists(cls, **kwargs):
         pass
     
-    
-    # DELETTER
-    @classmethod
-    def delete(cls, size: int = 1, **kwargs):
-        pass
     

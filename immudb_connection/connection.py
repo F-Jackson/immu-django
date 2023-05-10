@@ -9,13 +9,11 @@ def starting_db() -> ImmudbClient:
                               publicKeyFile=settings.IMMU_PUBLIC_KEY,
                               rs=PersistentRootService())
         client.login(settings.IMMU_USER, settings.IMMU_PASSWORD)
-        ###
-        # client.databaseList()
-        # client.createDatabase()
-        # # client.loadDatabase()
-        # # client.unloadDatabase()
-        # client.useDatabase()
-        ###
+        
+        databases = client.databaseList()
+
+        if 'jsonsqlfields' not in databases:
+            client.createDatabase('jsonsqlfields')
     except Exception as e:
         raise LoginError(f'Error while trying to login the client, error: {str(e)}')
     else:

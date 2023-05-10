@@ -1,5 +1,3 @@
-from typing import Dict
-
 from immudb_connection.exceptions import TableAlterError
 
 
@@ -22,12 +20,20 @@ class TableAlter:
         model_name: str):
         self.immu_client = immu_client
         self.table_name = table_name
-        self.db_fields = [field for field in db_fields 
-                            if not field.startswith('PRIMARY')]
         
-        pks = db_fields[-1].strip('PRIMARY KEY')
+        self.db_fields = [field for field in db_fields 
+                            if not field.startswith('PRIMARY')
+                            and not field.startswith('__json__')]
+        
+        self.json_fields = [field for field in db_fields 
+                            if field.startswith('__json__')]
+        self.json_pk_length = 0
+        
+        pks_field = [field for field in db_fields 
+                        if field.startswith('PRIMARY')]
+        pks = pks_field[0].strip('PRIMARY KEY')
         pks = tuple(map(str.strip, pks[1:-1].split(',')))
-        self._append_primary_keys_in_db_field(pks)
+        self.json_pks = self._append_primary_keys_in_db_field(pks)
         
         tables = immu_client.sqlQuery(
             f"SELECT * FROM COLUMNS('{table_name}');"
@@ -44,19 +50,23 @@ class TableAlter:
        
         
     def _append_primary_keys_in_db_field(self, pks: tuple[str]):
+        json_pks = []
         new_db_fields = []
-        for db_field in self.db_fields:
+        for db_field in self.db_fields:            
             db_name, db_atr = db_field.split(" ", 1)
             
             if db_name in pks:
                 db_field = f'{db_name} {db_atr} PRIMARY KEY'
+                json_pks.append(db_name)
                 
             new_db_fields.append(db_field)
         self.db_fields = new_db_fields
+        return json_pks
         
         
     def _get_tables_fields(self, tables: list[tuple]) -> list[str]:
         table_fields = []
+        
         for table in tables:
             table_field = _TableField(table)
             
@@ -73,8 +83,13 @@ class TableAlter:
                 new_caractics += ' PRIMARY KEY'
                 
             table_fields.append(new_caractics)
-        return table_fields
             
+            if table_field.name in self.json_pks:
+                self.json_pk_length += len(table_field.name) + 1
+                self.json_pk_length += int(table_field.bytes) + 1
+        
+        return table_fields
+    
     
     def _remove_fields(
         self, db_field: str, 
@@ -84,15 +99,13 @@ class TableAlter:
     
     
     def _remove_same_fields(self):
-        size_db_fields = len(self.db_fields)
-        size_tb_fields = len(self.table_fields)
-            
-        for i in range(min(size_tb_fields, size_db_fields)):
-            db_field = self.db_fields[i]
-            tb_field = self.table_fields[i]
-            
-            if db_field == tb_field:
-                self._remove_fields(db_field, tb_field)
+        set_db_fields = set(self.db_fields)
+        set_tb_fields = set(self.table_fields)
+        
+        common_fields = set_db_fields.intersection(set_tb_fields)
+        
+        for field in common_fields:
+            self._remove_fields(field, field)
                
                 
     def _get_user_valid_input(self, txt: str) -> str:
@@ -164,8 +177,9 @@ class TableAlter:
         
         if error != '':
             error += f'\nNOTE: immudb just can rename fields and ' \
-            'add new fields that inst primary key, nullable and auto incrementable. ' \
-            'Fields cant be deleted or modify caractericts of a field'
+            'add new fields that inst primary key, not nullable and auto incrementable. ' \
+            'Fields cant be deleted or modify caractericts of a field. ' \
+            'ForeignKey fields cant be changed just append'
             error += f'\nOLD TABLE: ({old_table})]'
             raise TableAlterError(error)
        
@@ -181,8 +195,29 @@ class TableAlter:
      
     
     def _send_succes_msg(self):
-        if len(self.rename_fields) > 0 and len(self.new_fields) > 0:
-            print(f'SUCCESS: {self.table_fields} table alter')
+        if len(self.rename_fields) > 0 or len(self.new_fields) > 0:
+            print(f'SUCCESS: {self.table_name} table alter')
+    
+    
+    def _make_json_fields(self):
+        for field in self.json_fields:
+            is_new = True
+            
+            db_atr = f'VARCHAR[{self.json_pk_length}]'
+            db_field = f'{field} {db_atr}'
+            
+            if db_field in self.table_fields:
+                self.to_remove_tb.append(db_field)
+                continue
+            
+            self.db_fields.append(db_field)
+            
+            is_new = self._see_if_field_is_renameble(
+                field, db_atr, db_field
+            )
+            
+            if is_new:
+                self._see_if_field_is_new(field, db_field)
     
     
     def alter(self):
@@ -202,6 +237,8 @@ class TableAlter:
                 self._see_if_field_is_new(db_name, db_field)
         
         old_table = ','.join(self.table_fields)
+        
+        self._make_json_fields()
         
         self._remove_fields_to_remove()
         
