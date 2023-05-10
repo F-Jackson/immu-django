@@ -10,6 +10,10 @@ class TableCreator:
         self.immu_client = immu_client
         self.table_name = table_name
         self.cls = cls
+        self.all_tables = [
+            table[0] for table in 
+            immu_client.sqlQuery('SELECT * FROM TABLES();')
+        ]
     
     
     def _make_foreign_key_field(self, field, db_fields: list[str]) -> str:
@@ -56,6 +60,11 @@ class TableCreator:
         self.immu_client.sqlExec(exec_str)
 
 
+    def _send_succes_msg(self):
+        if self.table_name not in self.all_tables:
+            print(f'SUCCESS: table {self.table_name} created')
+
+
     def create_table(self) -> list[str]:
         db_fields = []
         pk = []
@@ -78,5 +87,7 @@ class TableCreator:
         self._verify_pk_null(pk, db_fields)
         
         self._send_sql_exec(db_fields)
+        
+        self._send_succes_msg()
         
         return db_fields

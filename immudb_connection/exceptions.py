@@ -3,3 +3,6 @@ class LogoutError(Exception):
 
 class LoginError(Exception):
     pass
+
+class TableAlterError(Exception):
+    pass

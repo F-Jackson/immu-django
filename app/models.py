@@ -23,6 +23,7 @@ set_collections_to_unique, \
 set_not_verified_refs_and_collections_in_multiple, \
 set_refs_to_unique, \
 set_verified_refs_and_collections_in_multiple
+from immudb_connection.sql.alter import TableAlter
 from immudb_connection.sql.creators import TableCreator
 
 from immudb_connection.utils import lowercase_and_add_space, random_key
@@ -336,59 +337,8 @@ def immu_sql_class(cls):
     db_fields = table_creator.create_table()
     
     # ALTER TABLE
-    tables = immu_client.sqlQuery(f"""
-        SELECT * FROM COLUMNS('{table_name}');
-    """)
-    
-    table_fields = []
-    for i in range(len(tables)):
-        table = tables[i]
-        
-        field_name = table[1]
-        field_type = table[2]
-        field_bytes = str(table[3])
-        field_nullable = table[4]
-        field_auto_increment = table[5]
-        field_indexed = table[6]
-        field_primary_key = table[7]
-        field_unique = table[8]
-        
-        new_caractics = field_name
-        new_caractics += f' {field_type}'
-        
-        if field_type == "VARCHAR":
-            new_caractics += f'[{field_bytes}]'
-        if field_auto_increment:
-            new_caractics += ' AUTO_INCREMENT'
-        if not field_nullable:
-            new_caractics += ' NOT NULL'
-            
-        table_fields.append(new_caractics)
-        
-    db_fields = [field for field in db_fields 
-                 if not field.startswith('PRIMARY')]
-
-    rename_fields = {}
-    new_fields = []
-    
-    
-    if len(db_fields) > len(table_fields):
-        larger_list = db_fields
-    else:
-        larger_list = table_fields
-    
-    for db_field, tb_field in zip(table_fields, db_fields):
-        if db_field != tb_field:
-            db_name, db_atr = db_field.split(" ", 1)
-            tb_name, tb_atr = tb_field.split(" ", 1)
-            
-            if db_atr == tb_atr and db_name != tb_name:
-                rename_fields[tb_name] = db_name
-            else:
-                new_fields.append(db_field)
-                
-    print(rename_fields)
-    print(new_fields)
+    table_alter = TableAlter(immu_client, table_name, db_fields, cls.__name__)
+    table_alter.alter()
         
     return cls
 
@@ -403,8 +353,10 @@ class ImmudbSQL(models.Model):
     tt = models.IntegerField(null=True)
     pp = models.IntegerField(default=1)
     po = models.CharField(default='o', max_length=255, null=True)
-    okk = models.IntegerField(primary_key=True)
+    okk2 = models.IntegerField(primary_key=True)
     lo = models.IntegerField()
+    ok = models.IntegerField(null=True)
+    test = models.IntegerField(null=True)
     
     # ABC VARS
     immu_confs = IMMU_CONFS_BASE_KEY_VALUE
