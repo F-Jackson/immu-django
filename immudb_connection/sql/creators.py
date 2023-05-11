@@ -99,6 +99,7 @@ class TableCreator:
                 
                 if not field.null:
                     db_field += ' NOT NULL'
+
                 if isinstance(field, AutoField):
                     db_field += ' AUTO_INCREMENT'
                     

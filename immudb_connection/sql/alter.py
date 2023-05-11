@@ -75,10 +75,10 @@ class TableAlter:
             
             if table_field.type == "VARCHAR":
                 new_caractics += f'[{table_field.bytes}]'
-            if table_field.auto_increment:
-                new_caractics += ' AUTO_INCREMENT'
             if not table_field.nullable:
                 new_caractics += ' NOT NULL'
+            if table_field.auto_increment:
+                new_caractics += ' AUTO_INCREMENT'
             if table_field.primary_key:
                 new_caractics += ' PRIMARY KEY'
                 

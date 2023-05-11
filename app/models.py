@@ -351,18 +351,11 @@ class Test(models.Model):
 @immu_sql_class
 class ImmudbSQL(models.Model):
     name = models.CharField(max_length=255, primary_key=True)
-    # number = models.BigAutoField(null=True)
-    foreing = models.ForeignKey(Test, on_delete=models.CASCADE, primary_key=True)
-    tt = models.IntegerField(null=True)
-    pp = models.IntegerField(default=1)
-    po = models.CharField(default='o', max_length=255, null=True)
-    okk2 = models.IntegerField(null=True)
-    lo = models.IntegerField(null=True)
-    ok = models.IntegerField(null=True)
-    test6 = models.JSONField()
-    po1 = models.IntegerField(null=True)
-    test4 = models.JSONField()
-    kp = models.ForeignKey(Test, on_delete=models.CASCADE, null=True)
+    # number = models.BigAutoField(primary_key=True)
+    foreing = models.ForeignKey(Test, on_delete=models.CASCADE)
+    tt = models.IntegerField(primary_key=True)
+    test = models.JSONField()
+    test2 = models.JSONField()
     
     
     # ABC VARS
@@ -373,8 +366,8 @@ class ImmudbSQL(models.Model):
         """
             Setting the abc class for only interact with the immu database
         """
-        abstract = True
-        managed = False
+        # abstract = True
+        # managed = False
         
 
     def save(self, *args, **kwargs) -> dict:
@@ -388,12 +381,22 @@ class ImmudbSQL(models.Model):
         
     # SETTER
     @classmethod
-    def create(cls, **kwargs):
+    def create(cls, **kwargs) -> int:
+        table_name = f'{apps.get_containing_app_config(cls.__module__).label}' \
+        f'_{lowercase_and_add_space(cls.__name__)}'
+        
         model_fields = []
         value_fields = []
         
+        json_fields = []
+        fg_fields = []
+        pk_fields = []
+        auto_increment_field = None
+        
         for field in cls._meta.fields:
             if isinstance(field, ForeignKey):
+                fg_fields.append(field.name)
+                
                 fg_pks = [
                     field for field in 
                     field.target_field.model._meta.fields 
@@ -404,28 +407,41 @@ class ImmudbSQL(models.Model):
                     field_name = f'{field.name}_{fg_pk.name}__fg'
                     model_fields.append(field_name)
                     value_fields.append(f'@{field_name}')
+                    
+                    if field.primary_key:
+                        pk_fields.append(field_name)
+                    
             elif isinstance(field, models.JSONField):
+                json_fields.append(field.attname)
+                
                 model_fields.append(f'__json__{field.name}')
                 value_fields.append(f'@__json__{field.name}')
             else:
                 model_fields.append(field.attname)
                 value_fields.append(f'@{field.attname}')
                 
+                if isinstance(field, models.AutoField):
+                    auto_increment_field = field.attname
+                    
+                if field.primary_key:
+                    pk_fields.append(field.attname)
+                
         value_fields = ', '.join(value_fields)
         model_fields = ', '.join(model_fields)
         
-        new_insert = f'INSERT INTO {cls.immu_confs["_tablename"]} ({model_fields}) ' \
+        new_insert = f'INSERT INTO {table_name} ({model_fields}) ' \
             f'VALUES ({value_fields});'
             
         values = {}
-        for key, value in kwargs:
-            #json
-            # get last field to get auincrement higher value
-            # primarys keys values
-            
-            # foreign key
-            # get obj primary key values
-            if :
+        json_keys = []
+        pk_values = {}
+        
+        print(fg_fields)
+        for key, value in kwargs.items():
+            if key in json_fields:
+                json_keys.append({key: value})
+            elif key in fg_fields:
+                print(type(value))
                 obj_pks = [
                     field for field in 
                     type(value)._meta.fields 
@@ -435,17 +451,39 @@ class ImmudbSQL(models.Model):
                 for pk in obj_pks:
                     name = f'{key}_{pk.name}__fg'
                     values[name] = getattr(value, pk.name)
-            
-            # normal
-            # get value
+                    
+                    if key in pk_fields:
+                        pk_values[name] = values[name]
             else:
+                print(key)
                 values[key] = value
+                if key in pk_fields:
+                    pk_values[key] = value
+        
+        #json
+        # get last field to get auincrement higher value
+        if auto_increment_field is not None:
+            res = immu_client.sqlQuery(
+                f'SELECT MAX({auto_increment_field}) FROM {table_name}'
+            )
+            values[auto_increment_field] = res[0][0]
+            
+        # primarys keys values
+        for field in json_fields:
+            field_value = ''
+            for key, value in pk_values.items():
+                field_value += f'{key}:{value}@'
+
+            field_name = f'__json__{field}'
+            values[field_name] = field_value
             
         resp = immu_client.sqlExec(f"""
             BEGIN TRANSACTION;
                 {new_insert}
             COMMIT;
         """, values)
+
+        return resp.txs[0].header.id
     
     @classmethod
     def create_mult(cls, obj_list: list[dict]):
