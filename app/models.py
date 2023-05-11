@@ -25,10 +25,9 @@ set_refs_to_unique, \
 set_verified_refs_and_collections_in_multiple
 from immudb_connection.sql.alter import TableAlter
 from immudb_connection.sql.creators import TableCreator
+from immudb_connection.sql.setters import UpsertMaker
 
 from immudb_connection.utils import lowercase_and_add_space, random_key
-
-from django.db.models.fields.related import ForeignKey
 
 
 immu_client = starting_db()
@@ -382,102 +381,20 @@ class ImmudbSQL(models.Model):
     # SETTER
     @classmethod
     def create(cls, **kwargs) -> int:
-        table_name = f'{apps.get_containing_app_config(cls.__module__).label}' \
-        f'_{lowercase_and_add_space(cls.__name__)}'
+        cls.on_call()
         
-        model_fields = []
-        value_fields = []
+        upsert_maker = UpsertMaker(cls, immu_client)
         
-        json_fields = []
-        fg_fields = []
-        pk_fields = []
-        auto_increment_field = None
-        
-        for field in cls._meta.fields:
-            if isinstance(field, ForeignKey):
-                fg_fields.append(field.name)
+        # get class fields
                 
-                fg_pks = [
-                    field for field in 
-                    field.target_field.model._meta.fields 
-                    if field.primary_key
-                ]
-                
-                for fg_pk in fg_pks:
-                    field_name = f'{field.name}_{fg_pk.name}__fg'
-                    model_fields.append(field_name)
-                    value_fields.append(f'@{field_name}')
-                    
-                    if field.primary_key:
-                        pk_fields.append(field_name)
-                    
-            elif isinstance(field, models.JSONField):
-                json_fields.append(field.attname)
-                
-                model_fields.append(f'__json__{field.name}')
-                value_fields.append(f'@__json__{field.name}')
-            else:
-                model_fields.append(field.attname)
-                value_fields.append(f'@{field.attname}')
-                
-                if isinstance(field, models.AutoField):
-                    auto_increment_field = field.attname
-                    
-                if field.primary_key:
-                    pk_fields.append(field.attname)
-                
-        value_fields = ', '.join(value_fields)
-        model_fields = ', '.join(model_fields)
-        
-        new_insert = f'INSERT INTO {table_name} ({model_fields}) ' \
-            f'VALUES ({value_fields});'
+        # make upsert string
             
-        values = {}
-        json_keys = {}
-        pk_values = {}
+        # get values
         
-        for key, value in kwargs.items():
-            if key in json_fields:
-                json_keys[key] = value
-            elif key in fg_fields:
-                print(type(value))
-                obj_pks = [
-                    field for field in 
-                    type(value)._meta.fields 
-                    if field.primary_key
-                ]
-                
-                for pk in obj_pks:
-                    name = f'{key}_{pk.name}__fg'
-                    values[name] = getattr(value, pk.name)
-                    
-                    if key in pk_fields:
-                        pk_values[name] = values[name]
-            else:
-                values[key] = value
-                if key in pk_fields:
-                    pk_values[key] = value
-        
-        #json
-        # get last field to get auincrement higher value
-        if auto_increment_field is not None:
-            res = immu_client.sqlQuery(
-                f'SELECT MAX({auto_increment_field}) FROM {table_name}'
-            )
-            values[auto_increment_field] = res[0][0]
+        # make increment value
             
-        append_jsons = {}    
-        # primarys keys values
-        for field in json_fields:
-            field_value = ''
-            for key, value in pk_values.items():
-                field_value += f'{key}:{value}@'
+        # make json values
 
-            field_name = f'__json__{field}'
-            values[field_name] = field_value
-            
-            key = f'@{table_name}@{field}@{field_value}'
-            append_jsons[key.encode()] = json.dumps(json_keys[field]).encode()
             
         resp = immu_client.sqlExec(f"""
             BEGIN TRANSACTION;
@@ -490,7 +407,11 @@ class ImmudbSQL(models.Model):
         }
         
         if len(append_jsons) > 0:
+            immu_client.useDatabase('jsonsqlfields')
             ids['jsons_tx_id'] = immu_client.setAll(append_jsons)
+
+
+        cls.on_call()
 
         return ids
     
