@@ -433,13 +433,12 @@ class ImmudbSQL(models.Model):
             f'VALUES ({value_fields});'
             
         values = {}
-        json_keys = []
+        json_keys = {}
         pk_values = {}
         
-        print(fg_fields)
         for key, value in kwargs.items():
             if key in json_fields:
-                json_keys.append({key: value})
+                json_keys[key] = value
             elif key in fg_fields:
                 print(type(value))
                 obj_pks = [
@@ -455,7 +454,6 @@ class ImmudbSQL(models.Model):
                     if key in pk_fields:
                         pk_values[name] = values[name]
             else:
-                print(key)
                 values[key] = value
                 if key in pk_fields:
                     pk_values[key] = value
@@ -468,6 +466,7 @@ class ImmudbSQL(models.Model):
             )
             values[auto_increment_field] = res[0][0]
             
+        append_jsons = {}    
         # primarys keys values
         for field in json_fields:
             field_value = ''
@@ -477,13 +476,23 @@ class ImmudbSQL(models.Model):
             field_name = f'__json__{field}'
             values[field_name] = field_value
             
+            key = f'@{table_name}@{field}@{field_value}'
+            append_jsons[key.encode()] = json.dumps(json_keys[field]).encode()
+            
         resp = immu_client.sqlExec(f"""
             BEGIN TRANSACTION;
                 {new_insert}
             COMMIT;
         """, values)
+        
+        ids = {
+            'sql_tx_id': resp.txs[0].header.id
+        }
+        
+        if len(append_jsons) > 0:
+            ids['jsons_tx_id'] = immu_client.setAll(append_jsons)
 
-        return resp.txs[0].header.id
+        return ids
     
     @classmethod
     def create_mult(cls, obj_list: list[dict]):
