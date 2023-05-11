@@ -385,30 +385,21 @@ class ImmudbSQL(models.Model):
         
         upsert_maker = UpsertMaker(cls, immu_client)
         
-        # get class fields
-                
-        # make upsert string
-            
-        # get values
-        
-        # make increment value
-            
-        # make json values
+        upserts = upsert_maker.make(**kwargs)
 
-            
         resp = immu_client.sqlExec(f"""
             BEGIN TRANSACTION;
-                {new_insert}
+                {upserts['upsert_string']}
             COMMIT;
-        """, values)
+        """, upserts['values'])
         
         ids = {
             'sql_tx_id': resp.txs[0].header.id
         }
         
-        if len(append_jsons) > 0:
+        if 'jsons' in upserts:
             immu_client.useDatabase('jsonsqlfields')
-            ids['jsons_tx_id'] = immu_client.setAll(append_jsons)
+            ids['jsons_tx_id'] = immu_client.setAll(upserts['jsons'])
 
 
         cls.on_call()

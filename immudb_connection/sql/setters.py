@@ -13,6 +13,10 @@ class UpsertMaker:
         self.table_name = f'{apps.get_containing_app_config(cls.__module__).label}' \
         f'_{lowercase_and_add_space(cls.__name__)}'
         
+        self._clean_class()
+        
+    
+    def _clean_class(self):
         self.model_fields = []
         self.value_fields = []
         self.json_fields = []
@@ -25,7 +29,7 @@ class UpsertMaker:
         self.json_keys = {}
         self.pk_values = {}
         self.append_jsons = {}
-        
+    
     
     def _get_class_fg_field(self, field):
         self.fg_fields.append(field.name)
@@ -140,3 +144,22 @@ class UpsertMaker:
             key = f'@{self.table_name}@{field}@{field_value}'
             self.append_jsons[key.encode()] = json.dumps(self.json_keys[field]).encode()    
         
+        
+    def make(self, **kwargs) -> dict:
+        self._clean_class()
+        self._get_class_fields()
+        upsert_string = self._make_upsert_string()
+        self._get_values(**kwargs)
+        self._make_autoincrement_value_field()
+        self._make_json_values()
+        
+        upsert = {
+            'upsert_string': upsert_string,
+            'values': self.values
+        }
+        
+        if len(self.append_jsons) > 0:
+            upsert['jsons'] = self.append_jsons
+            
+        return upsert
+    
