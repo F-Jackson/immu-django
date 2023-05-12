@@ -399,8 +399,11 @@ class ImmudbSQL(models.Model):
         
         if 'jsons' in upserts:
             immu_client.useDatabase('jsonsqlfields')
-            ids['jsons_tx_id'] = immu_client.setAll(upserts['jsons'])
-
+            resp = immu_client.setAll(upserts['jsons'])
+            ids['jsons_tx'] = {
+                'tx_id': resp.id,
+                'verified': resp.verified
+            }
 
         cls.on_call()
 
@@ -413,8 +416,43 @@ class ImmudbSQL(models.Model):
     
     # GETTER
     @classmethod
-    def get(cls, order_by: list[str] = None, **kwargs):
-        pass
+    def get(cls, order_by: str = None, **kwargs):
+        cls.on_call()
+        
+        table_name = f'{apps.get_containing_app_config(cls.__module__).label}' \
+        f'_{lowercase_and_add_space(cls.__name__)}'
+        
+        if order_by is not None:
+            order = 'DESC'
+            
+            if order_by.startswith('-'):
+                order_by = order_by[1:]
+                order = 'ASC'
+                
+            order_by_str = f'ORDER BY {order_by} {order};'
+        else:
+            order_by_str = ''
+            
+        where_str = ''
+            
+        for key, value in kwargs.items():
+            if type(value) != str and type(value) != int and type(value) != float:
+                raise ValueError(f'kwargs must int, str or float')
+            
+            if where_str == '':
+                where_str += f'WHERE '
+            else:
+                where_str += ' AND '
+                
+            if type(value) == str:
+                value = f"'{value}'"
+                
+            where_str += f"{key} = {value}"
+            
+        query_str = f'SELECT * FROM {table_name} {where_str} {order_by_str}'
+        
+        resp = immu_client.sqlQuery(query_str)
+        print(resp)
     
     
     @classmethod

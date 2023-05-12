@@ -27,7 +27,7 @@ class TableAlter:
         
         self.json_fields = [field for field in db_fields 
                             if field.startswith('__json__')]
-        self.json_pk_length = 0
+        self.json_pk_length = len(self.table_name) + 1
         
         pks_field = [field for field in db_fields 
                         if field.startswith('PRIMARY')]
@@ -203,7 +203,8 @@ class TableAlter:
         for field in self.json_fields:
             is_new = True
             
-            db_atr = f'VARCHAR[{self.json_pk_length}]'
+            field_length = len(field) + 1 + self.json_pk_length
+            db_atr = f'VARCHAR[{field_length}]'
             db_field = f'{field} {db_atr}'
             
             if db_field in self.table_fields:

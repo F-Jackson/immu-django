@@ -123,11 +123,11 @@ class UpsertMaker:
         
         
     def _make_upsert_string(self) -> str:
-        value_fields = ', '.join(value_fields)
-        model_fields = ', '.join(model_fields)
+        self.value_fields = ', '.join(self.value_fields)
+        self.model_fields = ', '.join(self.model_fields)
         
-        new_insert = f'UPSERT INTO {self.table_name} ({model_fields}) ' \
-            f'VALUES ({value_fields});'
+        new_insert = f'UPSERT INTO {self.table_name} ({self.model_fields}) ' \
+            f'VALUES ({self.value_fields});'
             
         return new_insert
         
@@ -139,9 +139,9 @@ class UpsertMaker:
                 field_value += f'{key}:{value}@'
 
             field_name = f'__json__{field}'
-            self.values[field_name] = field_value
             
             key = f'@{self.table_name}@{field}@{field_value}'
+            self.values[field_name] = key
             self.append_jsons[key.encode()] = json.dumps(self.json_keys[field]).encode()    
         
         
