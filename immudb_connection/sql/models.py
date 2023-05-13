@@ -24,15 +24,11 @@ class SQLModel:
             super().__delattr__(f'_{name}')
     
     def __str__(self):
-        return str({k: getattr(self, k) for k in dir(self) if not k.startswith("__")})
+        return str({k: getattr(self, k) for k in dir(self) if not k.startswith("__") and k != 'pks'})
     
     def __repr__(self):
         return str(self)
     
     def __dir__(self):
         return [k[1:] for k in vars(self) if k.startswith("_")]
-    
-    @property
-    def __pks__(self):
-        return self._pks.copy()
     

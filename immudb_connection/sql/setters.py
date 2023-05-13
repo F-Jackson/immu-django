@@ -169,7 +169,8 @@ class UpsertMaker:
         
         upsert = {
             'upsert_string': upsert_string,
-            'values': self.values
+            'values': self.values,
+            'pks': '',
         }
         
         if len(self.append_jsons) > 0:

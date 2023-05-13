@@ -399,7 +399,7 @@ class ImmudbSQL(models.Model):
         """, upserts['values'])
         
         ids = {
-            'sql_tx_id': resp.txs[0].header.id
+            'sql_tx_id': resp.txs[0].header.id,
         }
         
         if 'jsons' in upserts:
@@ -409,6 +409,7 @@ class ImmudbSQL(models.Model):
                 'tx_id': resp.id,
                 'verified': resp.verified
             }
+
 
         cls.on_call()
 
