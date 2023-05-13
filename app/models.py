@@ -23,8 +23,9 @@ set_collections_to_unique, \
 set_not_verified_refs_and_collections_in_multiple, \
 set_refs_to_unique, \
 set_verified_refs_and_collections_in_multiple
-from immudb_connection.sql.alter import TableAlter
+from immudb_connection.sql.alter import _TableField, TableAlter
 from immudb_connection.sql.creators import TableCreator
+from immudb_connection.sql.getters import GetWhere
 from immudb_connection.sql.setters import UpsertMaker
 
 from immudb_connection.utils import lowercase_and_add_space, random_key
@@ -343,7 +344,7 @@ def immu_sql_class(cls):
         
     return cls
 
-class Test(models.Model):
+class TestSQL(models.Model):
     nome = models.CharField(max_length=200, primary_key=True)
     number = models.IntegerField(primary_key=True)
 
@@ -351,7 +352,7 @@ class Test(models.Model):
 class ImmudbSQL(models.Model):
     name = models.CharField(max_length=255, primary_key=True)
     # number = models.BigAutoField(primary_key=True)
-    foreing = models.ForeignKey(Test, on_delete=models.CASCADE)
+    foreing = models.ForeignKey(TestSQL, on_delete=models.CASCADE)
     tt = models.IntegerField(primary_key=True)
     test = models.JSONField()
     test2 = models.JSONField()
@@ -422,37 +423,98 @@ class ImmudbSQL(models.Model):
         table_name = f'{apps.get_containing_app_config(cls.__module__).label}' \
         f'_{lowercase_and_add_space(cls.__name__)}'
         
-        if order_by is not None:
-            order = 'DESC'
-            
-            if order_by.startswith('-'):
-                order_by = order_by[1:]
-                order = 'ASC'
-                
-            order_by_str = f'ORDER BY {order_by} {order};'
-        else:
-            order_by_str = ''
-            
-        where_str = ''
-            
-        for key, value in kwargs.items():
-            if type(value) != str and type(value) != int and type(value) != float:
-                raise ValueError(f'kwargs must int, str or float')
-            
-            if where_str == '':
-                where_str += f'WHERE '
-            else:
-                where_str += ' AND '
-                
-            if type(value) == str:
-                value = f"'{value}'"
-                
-            where_str += f"{key} = {value}"
-            
-        query_str = f'SELECT * FROM {table_name} {where_str} {order_by_str}'
+        getter = GetWhere(cls.immu_confs['database'], table_name, immu_client)
+        values = getter.get(1, 1, order_by, **kwargs)
         
-        resp = immu_client.sqlQuery(query_str)
-        print(resp)
+        # tables = immu_client.sqlQuery(
+        #     f"SELECT * FROM COLUMNS('{table_name}');"
+        # )
+        # table_fields_names = []
+        
+        # for table in tables:
+        #     table_field = _TableField(table)
+        #     table_fields_names.append(table_field.name)
+            
+        # #
+        
+        # if order_by is not None:
+        #     order = 'DESC'
+            
+        #     if order_by.startswith('-'):
+        #         order_by = order_by[1:]
+        #         order = 'ASC'
+                
+        #     order_by_str = f'ORDER BY {order_by} {order};'
+        # else:
+        #     order_by_str = ''
+            
+        # #
+            
+        # where_str = ''
+            
+        # for key, value in kwargs.items():
+        #     if type(value) != str and type(value) != int and type(value) != float:
+        #         raise ValueError(f'kwargs must int, str or float')
+            
+        #     if where_str == '':
+        #         where_str += f'WHERE '
+        #     else:
+        #         where_str += ' AND '
+                
+        #     if type(value) == str:
+        #         value = f"'{value}'"
+                
+        #     where_str += f"{key} = {value}"
+            
+        # #
+            
+        # query_str = f'SELECT * FROM {table_name} {where_str} {order_by_str}'
+        
+        # value = immu_client.sqlQuery(query_str)[0]
+        
+        # #
+        
+        # items = []
+        
+        
+        
+        # fg_fields = {}
+        # item = {}
+        
+        # for f, v in zip(table_fields_names, value):
+        #     if str(f).startswith('__json__'):
+        #         name = f.strip('__json__')
+        #         immu_client.useDatabase('jsonsqlfields')
+                
+        #         value = immu_client.get(v.encode()).value.decode()
+                
+        #         cls.on_call()
+                
+        #         item[name] = json.loads(value)
+        #     elif str(f).endswith('__fg'):
+        #         fg = str(f).split('__')
+                
+        #         if fg[2] not in fg_fields:
+        #             fg_fields[fg[2]] = {}
+        #             fg_fields[fg[2]]['name'] = fg[0]
+        #             fg_fields[fg[2]]['values'] = {}
+                
+        #         fg_fields[fg[2]]['values'][fg[1]] = v
+        #     else:
+        #         item[f] = v
+        # items.append(item)
+        
+        # #
+            
+        # print(fg_fields)
+        # for key, value in fg_fields.items():
+        #     table_name = key
+        #     name = value['name']
+            
+        #     # recursive values
+        # print(items)
+        # query_values = []
+        
     
     
     @classmethod

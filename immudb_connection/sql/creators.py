@@ -1,6 +1,9 @@
 from django.db.models.fields.related import ForeignKey
 from django.db.models import AutoField, JSONField
 from django.db import DEFAULT_DB_ALIAS, connections
+from django.apps import apps
+
+from immudb_connection.utils import lowercase_and_add_space
 
 
 connection = connections[DEFAULT_DB_ALIAS]
@@ -20,15 +23,21 @@ class TableCreator:
     
     def _make_foreign_key_field(
         self, field, 
-        db_fields: list[str], pks: list[str]):        
+        db_fields: list[str], pks: list[str]): 
+        field_model = field.target_field.model
+               
         fg_pks = [
             field for field in 
-            field.target_field.model._meta.fields 
+            field_model._meta.fields 
             if field.primary_key
         ]
         
+        obj_name = field_model._meta.object_name
+        app_name = apps.get_containing_app_config(field_model.__module__).label
+        obj_name = f'{app_name}_{lowercase_and_add_space(obj_name)}'
+        
         for fg_pk in fg_pks:
-            field_name = f'{field.name}_{fg_pk.name}__fg'
+            field_name = f'{field.name}__{fg_pk.name}__{obj_name}__fg'
             db_field = f'{field_name} '\
                 f'{fg_pk.db_type(connection).replace("(", "[").replace(")", "]").upper()}'
             

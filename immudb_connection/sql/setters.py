@@ -40,8 +40,14 @@ class UpsertMaker:
             if field.primary_key
         ]
         
+        field_model = field.target_field.model
+        obj_name = field_model._meta.object_name
+        app_name = apps.get_containing_app_config(field_model.__module__).label
+        obj_name = f'{app_name}_{lowercase_and_add_space(obj_name)}'
+        
+        
         for fg_pk in fg_pks:
-            field_name = f'{field.name}_{fg_pk.name}__fg'
+            field_name = f'{field.name}__{fg_pk.name}__{obj_name}__fg'
             self.model_fields.append(field_name)
             self.value_fields.append(f'@{field_name}')
             
@@ -82,14 +88,20 @@ class UpsertMaker:
         
     
     def _get_fg_value(self, key: str, value: object):
+        field_model = type(value)
+        
         obj_pks = [
             field for field in 
-            type(value)._meta.fields 
+            field_model._meta.fields
             if field.primary_key
         ]
         
+        obj_name = field_model._meta.object_name
+        app_name = apps.get_containing_app_config(field_model.__module__).label
+        obj_name = f'{app_name}_{lowercase_and_add_space(obj_name)}'
+        
         for pk in obj_pks:
-            name = f'{key}_{pk.name}__fg'
+            name = f'{key}__{pk.name}__{obj_name}__fg'
             self.values[name] = getattr(value, pk.name)
             
             if key in self.pk_fields:
