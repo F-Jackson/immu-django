@@ -26,6 +26,7 @@ set_verified_refs_and_collections_in_multiple
 from immudb_connection.sql.alter import _TableField, TableAlter
 from immudb_connection.sql.creators import TableCreator
 from immudb_connection.sql.getters import GetWhere
+from immudb_connection.sql.models import SQLModel
 from immudb_connection.sql.setters import UpsertMaker
 
 from immudb_connection.utils import lowercase_and_add_space, random_key
@@ -352,10 +353,11 @@ class TestSQL(models.Model):
 class ImmudbSQL(models.Model):
     name = models.CharField(max_length=255, primary_key=True)
     # number = models.BigAutoField(primary_key=True)
-    foreing = models.ForeignKey(TestSQL, on_delete=models.CASCADE)
+    # foreing = models.ForeignKey(TestSQL, on_delete=models.CASCADE)
     tt = models.IntegerField(primary_key=True)
     test = models.JSONField()
     test2 = models.JSONField()
+    po = models.CharField(max_length=120, null=True)
     
     
     # ABC VARS
@@ -417,120 +419,39 @@ class ImmudbSQL(models.Model):
     
     # GETTER
     @classmethod
-    def get(cls, order_by: str = None, **kwargs):
+    def get(
+        cls, order_by: str = None, 
+        recursive_fg_deep: int = 1, **kwargs) -> SQLModel:
         cls.on_call()
         
         table_name = f'{apps.get_containing_app_config(cls.__module__).label}' \
         f'_{lowercase_and_add_space(cls.__name__)}'
         
         getter = GetWhere(cls.immu_confs['database'], table_name, immu_client)
-        values = getter.get(1, 1, order_by, **kwargs)
+        values = getter.get(
+            size_limit=1, recursive_fg_deep=recursive_fg_deep, 
+            order_by=order_by, **kwargs
+        )
         
-        # tables = immu_client.sqlQuery(
-        #     f"SELECT * FROM COLUMNS('{table_name}');"
-        # )
-        # table_fields_names = []
+        print(values)
         
-        # for table in tables:
-        #     table_field = _TableField(table)
-        #     table_fields_names.append(table_field.name)
-            
-        # #
-        
-        # if order_by is not None:
-        #     order = 'DESC'
-            
-        #     if order_by.startswith('-'):
-        #         order_by = order_by[1:]
-        #         order = 'ASC'
-                
-        #     order_by_str = f'ORDER BY {order_by} {order};'
-        # else:
-        #     order_by_str = ''
-            
-        # #
-            
-        # where_str = ''
-            
-        # for key, value in kwargs.items():
-        #     if type(value) != str and type(value) != int and type(value) != float:
-        #         raise ValueError(f'kwargs must int, str or float')
-            
-        #     if where_str == '':
-        #         where_str += f'WHERE '
-        #     else:
-        #         where_str += ' AND '
-                
-        #     if type(value) == str:
-        #         value = f"'{value}'"
-                
-        #     where_str += f"{key} = {value}"
-            
-        # #
-            
-        # query_str = f'SELECT * FROM {table_name} {where_str} {order_by_str}'
-        
-        # value = immu_client.sqlQuery(query_str)[0]
-        
-        # #
-        
-        # items = []
-        
-        
-        
-        # fg_fields = {}
-        # item = {}
-        
-        # for f, v in zip(table_fields_names, value):
-        #     if str(f).startswith('__json__'):
-        #         name = f.strip('__json__')
-        #         immu_client.useDatabase('jsonsqlfields')
-                
-        #         value = immu_client.get(v.encode()).value.decode()
-                
-        #         cls.on_call()
-                
-        #         item[name] = json.loads(value)
-        #     elif str(f).endswith('__fg'):
-        #         fg = str(f).split('__')
-                
-        #         if fg[2] not in fg_fields:
-        #             fg_fields[fg[2]] = {}
-        #             fg_fields[fg[2]]['name'] = fg[0]
-        #             fg_fields[fg[2]]['values'] = {}
-                
-        #         fg_fields[fg[2]]['values'][fg[1]] = v
-        #     else:
-        #         item[f] = v
-        # items.append(item)
-        
-        # #
-            
-        # print(fg_fields)
-        # for key, value in fg_fields.items():
-        #     table_name = key
-        #     name = value['name']
-            
-        #     # recursive values
-        # print(items)
-        # query_values = []
-        
-    
     
     @classmethod
     def all(
-        cls, order_by: list[str] = None, 
-        get_foreign_keys_objects: bool = False, 
-        reverse: bool = True) -> list[dict]:
-        res = immu_client.sqlQuery(
-            f'SELECT * FROM {cls.immu_confs["_tablename"]} ORDER BY {order_by} {"DESC" if reverse else "ASC"};'
+        cls, order_by: str = None,
+        recursive_fg_deep: int = 1) -> list[SQLModel]:
+        cls.on_call()
+        
+        table_name = f'{apps.get_containing_app_config(cls.__module__).label}' \
+            f'_{lowercase_and_add_space(cls.__name__)}'
+        
+        getter = GetWhere(cls.immu_confs['database'], table_name, immu_client)
+        values = getter.get(
+            recursive_fg_deep=recursive_fg_deep,
+            order_by=order_by, kwargs={}
         )
-        
-        
-        if get_foreign_keys_objects:
-            pass
-        
-        return res
+
+        print(values)
     
     
     @classmethod

@@ -1,5 +1,6 @@
 import json
 from immudb_connection.sql.alter import _TableField
+from immudb_connection.sql.models import SQLModel
 
 
 class GetWhere:
@@ -118,7 +119,7 @@ class GetWhere:
     
     
     def get(
-        self, size_limit: int = 1_000, 
+        self, *, size_limit: int = 1_000, 
         recursive_fg_deep: int = 0, order_by: str = None, 
         **kwargs) -> list[dict] | dict:
         items = []
@@ -148,8 +149,10 @@ class GetWhere:
             itens_count += 1
             
         
-        if size_limit == 1:
-            return items[0]
+        if size_limit <= 1:
+            obj = SQLModel(self.table_pks, **items[0])
+            return obj
         else:
-            return items
+            objs = [SQLModel(self.table_pks, **item) for item in items]
+            return objs
     
