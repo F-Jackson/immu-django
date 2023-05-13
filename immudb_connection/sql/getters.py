@@ -49,9 +49,12 @@ class GetWhere:
         return order_by_str
     
     
-    def _make_where_str(self, values: dict) -> str:
+    def _make_where_str(self, values: dict = None) -> str:
+        if values is None:
+            return ''
+        
         where_str = ''
-            
+        
         for key, value in values.items():
             if type(value) != str and type(value) != int and type(value) != float:
                 raise ValueError(f'kwargs must int, str or float')
@@ -69,7 +72,7 @@ class GetWhere:
         return where_str
     
     
-    def _make_query(self, values: dict, order_by: str = None) -> list[tuple]:
+    def _make_query(self, values: dict = None, order_by: str = None) -> list[tuple]:
         query_str = f'SELECT * FROM {self.table_name} ' \
             f'{self._make_where_str(values)} ' \
             f'{self._make_order_str(order_by)}'

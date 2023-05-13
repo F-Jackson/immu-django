@@ -426,13 +426,18 @@ class ImmudbSQL(models.Model):
         recursive_fg_deep: int = 1, **kwargs) -> SQLModel:
         cls.on_call()
         
-        getter = GetWhere(cls.immu_confs['database'], cls.immu_confs['table_name'], immu_client)
+        getter = GetWhere(
+            cls.immu_confs['database'], 
+            cls.immu_confs['table_name'], 
+            immu_client
+        )
+        
         values = getter.get(
             size_limit=1, recursive_fg_deep=recursive_fg_deep, 
             order_by=order_by, **kwargs
         )
         
-        print(values)
+        return values
         
     
     @classmethod
@@ -441,13 +446,18 @@ class ImmudbSQL(models.Model):
         recursive_fg_deep: int = 1) -> list[SQLModel]:
         cls.on_call()
         
-        getter = GetWhere(cls.immu_confs['database'], cls.immu_confs['table_name'], immu_client)
+        getter = GetWhere(
+            cls.immu_confs['database'], 
+            cls.immu_confs['table_name'], 
+            immu_client
+        )
+        
         values = getter.get(
             recursive_fg_deep=recursive_fg_deep,
-            order_by=order_by, kwargs={}
+            order_by=order_by
         )
 
-        print(values)
+        return values
     
     
     @classmethod

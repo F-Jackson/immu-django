@@ -72,8 +72,11 @@ class UpsertMaker:
             self.pk_fields.append(field.attname)
     
     
-    def _get_class_fields(self):
+    def _get_class_fields(self, **kwargs):
         for field in self.cls._meta.fields:
+            if field.attname not in kwargs.keys():
+                continue
+            
             if isinstance(field, ForeignKey):
                 self._get_class_fg_field(field)
             elif isinstance(field, JSONField):
@@ -158,7 +161,7 @@ class UpsertMaker:
         
     def make(self, **kwargs) -> dict:
         self._clean_class()
-        self._get_class_fields()
+        self._get_class_fields(**kwargs)
         upsert_string = self._make_upsert_string()
         self._get_values(**kwargs)
         self._make_autoincrement_value_field()

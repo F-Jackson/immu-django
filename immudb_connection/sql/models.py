@@ -9,7 +9,7 @@ class SQLModel:
     def __getattr__(self, name):
         if name.startswith("_"):
             raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
-        return getattr(self, f'_{name}').copy()
+        return getattr(self, f'_{name}')
     
     def __setattr__(self, name, value):
         if name.startswith("_"):
@@ -24,13 +24,13 @@ class SQLModel:
             super().__delattr__(f'_{name}')
     
     def __str__(self):
-        return str({k[1:]: getattr(self, k) for k in dir(self) if not k.startswith("__")})
+        return str({k: getattr(self, k) for k in dir(self) if not k.startswith("__")})
     
     def __repr__(self):
         return str(self)
     
     def __dir__(self):
-        return [k[1:] for k in dir(self) if not k.startswith("__")]
+        return [k[1:] for k in vars(self) if k.startswith("_")]
     
     @property
     def __pks__(self):
