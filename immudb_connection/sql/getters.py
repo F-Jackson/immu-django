@@ -8,6 +8,9 @@ class GetWhere:
         self.table_name = table_name
         self.immu_client = immu_client
         
+        self.table_fields_names = []
+        self.table_pks = []
+        
         self._get_table_columns()
     
     
@@ -15,11 +18,18 @@ class GetWhere:
         tables = self.immu_client.sqlQuery(
             f"SELECT * FROM COLUMNS('{self.table_name}');"
         )
-        self.table_fields_names = []
         
         for table in tables:
             table_field = _TableField(table)
             self.table_fields_names.append(table_field.name)
+            
+            if table_field.primary_key:
+                if table_field.type == 'VARCHAR':
+                    atr = f'VARCHAR[{table_field.bytes}]' 
+                else: 
+                    atr = table_field.type
+                pk = f'{table_field.name} {atr}'
+                self.table_pks.append(pk)
     
     
     def _make_order_str(self, order_by: str = None) -> str:
