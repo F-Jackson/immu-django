@@ -343,6 +343,8 @@ def immu_sql_class(cls):
     table_alter = TableAlter(immu_client, table_name, db_fields, cls.__name__)
     table_alter.alter()
         
+    cls.immu_confs['table_name'] = table_name
+        
     return cls
 
 class TestSQL(models.Model):
@@ -386,7 +388,7 @@ class ImmudbSQL(models.Model):
     def create(cls, **kwargs) -> int:
         cls.on_call()
         
-        upsert_maker = UpsertMaker(cls, immu_client)
+        upsert_maker = UpsertMaker(cls, cls.immu_confs['table_name'], immu_client)
         
         upserts = upsert_maker.make(**kwargs)
 
@@ -424,10 +426,7 @@ class ImmudbSQL(models.Model):
         recursive_fg_deep: int = 1, **kwargs) -> SQLModel:
         cls.on_call()
         
-        table_name = f'{apps.get_containing_app_config(cls.__module__).label}' \
-        f'_{lowercase_and_add_space(cls.__name__)}'
-        
-        getter = GetWhere(cls.immu_confs['database'], table_name, immu_client)
+        getter = GetWhere(cls.immu_confs['database'], cls.immu_confs['table_name'], immu_client)
         values = getter.get(
             size_limit=1, recursive_fg_deep=recursive_fg_deep, 
             order_by=order_by, **kwargs
@@ -442,10 +441,7 @@ class ImmudbSQL(models.Model):
         recursive_fg_deep: int = 1) -> list[SQLModel]:
         cls.on_call()
         
-        table_name = f'{apps.get_containing_app_config(cls.__module__).label}' \
-            f'_{lowercase_and_add_space(cls.__name__)}'
-        
-        getter = GetWhere(cls.immu_confs['database'], table_name, immu_client)
+        getter = GetWhere(cls.immu_confs['database'], cls.immu_confs['table_name'], immu_client)
         values = getter.get(
             recursive_fg_deep=recursive_fg_deep,
             order_by=order_by, kwargs={}

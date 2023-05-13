@@ -29,6 +29,7 @@ class GetWhere:
                     atr = f'VARCHAR[{table_field.bytes}]' 
                 else: 
                     atr = table_field.type
+                    
                 pk = f'{table_field.name} {atr}'
                 self.table_pks.append(pk)
     

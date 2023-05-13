@@ -6,12 +6,11 @@ from django.db.models.fields.related import ForeignKey
 
 
 class UpsertMaker:
-    def __init__(self, cls, immu_client) -> None:
+    def __init__(self, cls, table_name: str, immu_client) -> None:
         self.cls = cls
         self.immu_client = immu_client
         
-        self.table_name = f'{apps.get_containing_app_config(cls.__module__).label}' \
-        f'_{lowercase_and_add_space(cls.__name__)}'
+        self.table_name = table_name
         
         self._clean_class()
         
