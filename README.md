@@ -1,2 +1,2 @@
 # immu-django
-django orm support for immudb
+django models support for immudb
