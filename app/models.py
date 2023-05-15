@@ -372,10 +372,6 @@ class ImmudbSQL(models.Model):
         """
         abstract = True
         managed = False
-        
-
-    def save(self, *args, **kwargs) -> dict:
-        pass
     
     
     @classmethod
@@ -454,8 +450,23 @@ class ImmudbSQL(models.Model):
     
     
     @classmethod
-    def filter(cls, order_by: list[str] = None, **kwargs):
-        pass
+    def filter(        
+        cls, order_by: str = None,
+        recursive_fg_deep: int = 1) -> list[SQLModel]:
+        cls.on_call()
+        
+        getter = GetWhere(
+            cls.immu_confs['database'], 
+            cls.immu_confs['table_name'], 
+            immu_client
+        )
+        
+        values = getter.get(
+            recursive_fg_deep=recursive_fg_deep,
+            order_by=order_by
+        )
+
+        return values
     
     
     @classmethod

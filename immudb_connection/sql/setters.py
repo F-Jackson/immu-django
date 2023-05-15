@@ -153,8 +153,7 @@ class InsertMaker:
             self.values[self.auto_increment_field] = res[0][0] + 1
             
             self.sql_values[self.auto_increment_field] = res[0][0] + 1
-            
-        
+ 
         
     def _make_insert_string(self) -> str:
         self.value_fields = ', '.join(self.value_fields)

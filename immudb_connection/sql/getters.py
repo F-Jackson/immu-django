@@ -50,8 +50,8 @@ class GetWhere:
     
     
     def _where(self, key: str, value: str | int | float, where_str: list[str]):
-        if type(value) != str and type(value) != int and type(value) != float:
-            raise ValueError(f'kwargs must int, str or float')
+        # if type(value) != str and type(value) != int and type(value) != float:
+        #     raise ValueError(f'kwargs must int, str or float')
         
         if len(where_str) == 0:
             where_str.append('WHERE ')
@@ -60,6 +60,27 @@ class GetWhere:
             
         if type(value) == str:
             value = f"'{value}'"
+            
+        ########
+        keys = key.split('__', 1)
+        if len(keys) > 1:
+            key = keys[0]
+            match keys[1]:
+                case 'not':
+                    where_str.append(f"{key} <> {value}")
+                case 'in':
+                    where_str.append(f'{key} IN ({", ".join(value)})')
+                case 'not_in':
+                    where_str.append(f'{key} NOT IN ({", ".join(value)})')
+                case 'gt':
+                    where_str.append(f"{key} > {value}")
+                case 'gte':
+                    where_str.append(f"{key} >= {value}")
+                case 'lt':
+                    where_str.append(f"{key} < {value}")
+                case 'lte':
+                    where_str.append(f"{key} <= {value}")
+        #########
             
         where_str.append(f"{key} = {value}")
     
@@ -84,6 +105,7 @@ class GetWhere:
     
     def _make_query(self, values: dict = None, order_by: str = None) -> list[tuple]:
         query_str = f'SELECT * FROM {self.table_name} ' \
+            f'self._make_time_travel_str(values) ' \
             f'{self._make_where_str(values)} ' \
             f'{self._make_order_str(order_by)}'
         
