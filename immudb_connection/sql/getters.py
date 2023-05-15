@@ -49,27 +49,37 @@ class GetWhere:
         return order_by_str
     
     
+    def _where(self, key: str, value: str | int | float, where_str: list[str]):
+        if type(value) != str and type(value) != int and type(value) != float:
+            raise ValueError(f'kwargs must int, str or float')
+        
+        if len(where_str) == 0:
+            where_str.append('WHERE ')
+        else:
+            where_str.append(' AND ')
+            
+        if type(value) == str:
+            value = f"'{value}'"
+            
+        where_str.append(f"{key} = {value}")
+    
+    
     def _make_where_str(self, values: dict = None) -> str:
         if values is None:
             return ''
         
-        where_str = ''
+        where_str = []
         
         for key, value in values.items():
-            if type(value) != str and type(value) != int and type(value) != float:
-                raise ValueError(f'kwargs must int, str or float')
-            
-            if where_str == '':
-                where_str += f'WHERE '
-            else:
-                where_str += ' AND '
-                
-            if type(value) == str:
-                value = f"'{value}'"
-                
-            where_str += f"{key} = {value}"
+            if isinstance(value, SQLForeign) or isinstance(value, SQLModel):
+                for pk in value._pks:
+                    pk = pk.split(' ', 1)[0]
+                    fg = [fd for fd in self.table_fields_names if fd.startswith(f'{key}__{pk}')][0]
+                    self._where(fg, getattr(value, pk), where_str)
+            else:      
+                self._where(key, value, where_str)
         
-        return where_str
+        return ''.join(where_str)
     
     
     def _make_query(self, values: dict = None, order_by: str = None) -> list[tuple]:
@@ -152,6 +162,8 @@ class GetWhere:
             
             itens_count += 1
             
+        if len(items) <= 0:
+            raise Exception('Cant find any itens')
         
         if size_limit <= 1:
             obj = SQLModel(self.table_pks, **items[0])
