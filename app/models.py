@@ -387,7 +387,6 @@ class ImmudbSQL(models.Model):
     def create(cls, **kwargs) -> int:
         cls.on_call()
         
-        print(cls.immu_confs)
         upsert_maker = InsertMaker(cls, cls.immu_confs['table_name'], immu_client)
         
         inserts = upsert_maker.make(**kwargs)
@@ -484,4 +483,4 @@ class TestSQL(ImmudbSQL):
 @immu_sql_class
 class Test2SQL(ImmudbSQL):
     num = models.IntegerField(primary_key=True)
-    fg = models.ForeignKey(TestSQL, on_delete=models.CASCADE)    
+    fg = models.ForeignKey(TestSQL, on_delete=models.CASCADE, primary_key=True)

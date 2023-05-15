@@ -41,7 +41,7 @@ class InsertMaker:
                 
         fg_pks = [
             field for field in 
-            field.target_field.model._meta.fields 
+            field.target_field.model._meta.fields
             if field.primary_key
         ]
         
@@ -84,7 +84,7 @@ class InsertMaker:
     
     def _get_class_fields(self, **kwargs):
         for field in self.cls._meta.fields:
-            if field.attname not in kwargs.keys():
+            if field.name not in kwargs.keys():
                 continue
             
             if isinstance(field, ForeignKey):
@@ -101,7 +101,7 @@ class InsertMaker:
         
     
     def _get_fg_value(self, key: str, value: object):
-        field_model = type(value)
+        field_model = [field for field in self.cls._meta.fields if field.name == key][0].target_field.model
         
         obj_pks = [
             field.split(" ", 1)[0] 
@@ -195,6 +195,7 @@ class InsertMaker:
         # get pks
         # get values
         # sql_model = SQLModel(self.pks, **self.sql_values)
+        print(upsert)
         print(self.sql_values)
         print(self.pks)
         sql_model = SQLModel(self.pks, **self.sql_values)
