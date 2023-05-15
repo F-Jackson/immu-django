@@ -36,6 +36,8 @@ immu_client = starting_db()
 databases = immu_client.databaseList()
 
 def immu_key_value_class(cls):
+    cls.immu_confs = cls.immu_confs.copy()
+    
     for key, value in IMMU_CONFS_BASE_KEY_VALUE.items():
         if key not in cls.immu_confs:
             cls.immu_confs[key] = value
@@ -333,6 +335,8 @@ class ImmudbKeyField(models.Model):
 
 
 def immu_sql_class(cls):
+    cls.immu_confs = cls.immu_confs.copy()
+    
     table_name = f'{apps.get_containing_app_config(cls.__module__).label}_{lowercase_and_add_space(cls.__name__)}'
     
     # CREATE TABLE
@@ -347,19 +351,14 @@ def immu_sql_class(cls):
         
     return cls
 
-class TestSQL(models.Model):
-    nome = models.CharField(max_length=200, primary_key=True)
-    number = models.IntegerField(primary_key=True)
-
-@immu_sql_class
 class ImmudbSQL(models.Model):
-    name = models.CharField(max_length=255, primary_key=True)
+    # name = models.CharField(max_length=255, primary_key=True)
     # number = models.BigAutoField(primary_key=True)
     # foreing = models.ForeignKey(TestSQL, on_delete=models.CASCADE)
-    tt = models.IntegerField(primary_key=True)
-    test = models.JSONField()
-    test2 = models.JSONField()
-    po = models.CharField(max_length=120, null=True)
+    # tt = models.IntegerField(primary_key=True)
+    # test = models.JSONField()
+    # test2 = models.JSONField()
+    # po = models.CharField(max_length=120, null=True)
     
     
     # ABC VARS
@@ -370,8 +369,8 @@ class ImmudbSQL(models.Model):
         """
             Setting the abc class for only interact with the immu database
         """
-        # abstract = True
-        # managed = False
+        abstract = True
+        managed = False
         
 
     def save(self, *args, **kwargs) -> dict:
@@ -388,6 +387,7 @@ class ImmudbSQL(models.Model):
     def create(cls, **kwargs) -> int:
         cls.on_call()
         
+        print(cls.immu_confs)
         upsert_maker = InsertMaker(cls, cls.immu_confs['table_name'], immu_client)
         
         inserts = upsert_maker.make(**kwargs)
@@ -476,4 +476,12 @@ class ImmudbSQL(models.Model):
     def exists(cls, **kwargs):
         pass
     
+
+@immu_sql_class
+class TestSQL(ImmudbSQL):
+    nome = models.CharField(max_length=200, primary_key=True)
     
+@immu_sql_class
+class Test2SQL(ImmudbSQL):
+    num = models.IntegerField(primary_key=True)
+    fg = models.ForeignKey(TestSQL, on_delete=models.CASCADE)    

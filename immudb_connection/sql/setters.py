@@ -104,9 +104,8 @@ class InsertMaker:
         field_model = type(value)
         
         obj_pks = [
-            field for field in 
-            field_model._meta.fields
-            if field.primary_key
+            field.split(" ", 1)[0] 
+            for field in value._pks
         ]
         
         obj_name = field_model._meta.object_name
@@ -115,9 +114,9 @@ class InsertMaker:
         
         fg_pks = {}
         for pk in obj_pks:
-            name = f'{key}__{pk.name}__{obj_name}__fg'
-            self.values[name] = getattr(value, pk.name)
-            fg_pks[pk.name] = getattr(value, pk.name)
+            name = f'{key}__{pk}__{obj_name}__fg'
+            self.values[name] = getattr(value, pk)
+            fg_pks[pk] = getattr(value, pk)
             
             if key in self.pk_fields:
                 self.pk_values[name] = self.values[name]

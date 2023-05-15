@@ -40,7 +40,10 @@ class SQLModel:
     #     #make upsert
     
 class SQLForeign:
-    def __init__(self, **kwargs):
+    def __init__(self, pks: list[str] = None, **kwargs):
+        if pks is not None:
+            self._pks = pks
+            
         for key, value in kwargs.items():
             setattr(self, f'_{key}', value)
             
