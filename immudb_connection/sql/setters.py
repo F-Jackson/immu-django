@@ -84,7 +84,7 @@ class InsertMaker:
     
     def _get_class_fields(self, **kwargs):
         for field in self.cls._meta.fields:
-            if field.name not in kwargs.keys():
+            if field.name not in kwargs.keys() and not isinstance(field, AutoField):
                 continue
             
             if isinstance(field, ForeignKey):
@@ -151,6 +151,9 @@ class InsertMaker:
                 f'SELECT MAX({self.auto_increment_field}) FROM {self.table_name}'
             )
             self.values[self.auto_increment_field] = res[0][0] + 1
+            
+            self.sql_values[self.auto_increment_field] = res[0][0] + 1
+            
         
         
     def _make_insert_string(self) -> str:
@@ -179,27 +182,20 @@ class InsertMaker:
     def make(self, **kwargs) -> dict:
         self._clean_class()
         self._get_class_fields(**kwargs)
-        upsert_string = self._make_insert_string()
+        insert_string = self._make_insert_string()
         self._get_values(**kwargs)
         self._make_autoincrement_value_field()
         self._make_json_values()
         
-        upsert = {
-            'upsert_string': upsert_string,
+        insert = {
+            'insert_string': insert_string,
             'values': self.values,
         }
         
         if len(self.append_jsons) > 0:
-            upsert['jsons'] = self.append_jsons
+            insert['jsons'] = self.append_jsons
             
-        # get pks
-        # get values
-        # sql_model = SQLModel(self.pks, **self.sql_values)
-        print(upsert)
-        print(self.sql_values)
-        print(self.pks)
-        sql_model = SQLModel(self.pks, **self.sql_values)
-        # upsert['sql_model'] = sql_model
+        insert['sql_model'] = SQLModel(self.pks, **self.sql_values)
             
-        return upsert
+        return insert
     

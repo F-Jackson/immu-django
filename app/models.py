@@ -387,32 +387,24 @@ class ImmudbSQL(models.Model):
     def create(cls, **kwargs) -> int:
         cls.on_call()
         
-        upsert_maker = InsertMaker(cls, cls.immu_confs['table_name'], immu_client)
+        insert_maker = InsertMaker(cls, cls.immu_confs['table_name'], immu_client)
         
-        inserts = upsert_maker.make(**kwargs)
+        inserts = insert_maker.make(**kwargs)
 
         resp = immu_client.sqlExec(f"""
             BEGIN TRANSACTION;
-                {inserts['upsert_string']}
+                {inserts['insert_string']}
             COMMIT;
         """, inserts['values'])
-        
-        ids = {
-            'sql_tx_id': resp.txs[0].header.id,
-        }
         
         if 'jsons' in inserts:
             immu_client.useDatabase('jsonsqlfields')
             resp = immu_client.setAll(inserts['jsons'])
-            ids['jsons_tx'] = {
-                'tx_id': resp.id,
-                'verified': resp.verified
-            }
         
 
         cls.on_call()
 
-        return ids
+        return inserts['sql_model']
     
     @classmethod
     def create_mult(cls, obj_list: list[dict]):
@@ -478,7 +470,8 @@ class ImmudbSQL(models.Model):
 
 @immu_sql_class
 class TestSQL(ImmudbSQL):
-    nome = models.CharField(max_length=200, primary_key=True)
+    nome = models.CharField(max_length=200)
+    po = models.BigAutoField(primary_key=True)
     
 @immu_sql_class
 class Test2SQL(ImmudbSQL):
