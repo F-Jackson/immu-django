@@ -121,7 +121,7 @@ class InsertMaker:
             if key in self.pk_fields:
                 self.pk_values[name] = self.values[name]
         
-        self.sql_values[key] = SQLForeign(**fg_pks)
+        self.sql_values[key] = value
     
     
     def _get_normal_value(
