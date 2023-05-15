@@ -1,5 +1,6 @@
 import random
 from django.utils.crypto import get_random_string
+from django.db import models
 
 
 def random_key(immu_client) -> str:
@@ -28,3 +29,9 @@ def lowercase_and_add_space(text: str) -> str:
             char_was_upper = False
             modified_text += text[i]
     return modified_text
+
+
+class ImmuForeignKey(models.ForeignKey):
+    def __init__(self, to, **kwargs):
+        kwargs.setdefault('on_delete', models.CASCADE)
+        super().__init__(to, **kwargs)

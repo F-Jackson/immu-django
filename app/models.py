@@ -23,11 +23,12 @@ set_collections_to_unique, \
 set_not_verified_refs_and_collections_in_multiple, \
 set_refs_to_unique, \
 set_verified_refs_and_collections_in_multiple
-from immudb_connection.sql.alter import _TableField, TableAlter
+from immudb_connection.sql.alter import TableAlter
 from immudb_connection.sql.creators import TableCreator
 from immudb_connection.sql.getters import GetWhere
 from immudb_connection.sql.models import SQLModel
 from immudb_connection.sql.setters import InsertMaker
+from immudb_connection.utils import ImmuForeignKey
 
 from immudb_connection.utils import lowercase_and_add_space, random_key
 
@@ -472,8 +473,9 @@ class ImmudbSQL(models.Model):
 class TestSQL(ImmudbSQL):
     nome = models.CharField(max_length=200)
     po = models.BigAutoField(primary_key=True)
+    json = models.JSONField()
     
 @immu_sql_class
 class Test2SQL(ImmudbSQL):
     num = models.IntegerField(primary_key=True)
-    fg = models.ForeignKey(TestSQL, on_delete=models.CASCADE, primary_key=True)
+    fg = ImmuForeignKey(TestSQL, primary_key=True)

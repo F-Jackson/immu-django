@@ -68,7 +68,7 @@ class TableCreator:
         if len(pk) == 0:
             field = '_id INTEGER NOT NULL AUTO_INCREMENT'
             db_fields.insert(0, field)
-            pk = 'PRIMARY KEY _id'
+            pk = 'PRIMARY KEY (_id)'
         else:
             pk = f'PRIMARY KEY ({", ".join(pk)})'
         
