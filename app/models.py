@@ -27,7 +27,7 @@ from immudb_connection.sql.alter import _TableField, TableAlter
 from immudb_connection.sql.creators import TableCreator
 from immudb_connection.sql.getters import GetWhere
 from immudb_connection.sql.models import SQLModel
-from immudb_connection.sql.setters import UpsertMaker
+from immudb_connection.sql.setters import InsertMaker
 
 from immudb_connection.utils import lowercase_and_add_space, random_key
 
@@ -388,28 +388,28 @@ class ImmudbSQL(models.Model):
     def create(cls, **kwargs) -> int:
         cls.on_call()
         
-        upsert_maker = UpsertMaker(cls, cls.immu_confs['table_name'], immu_client)
+        upsert_maker = InsertMaker(cls, cls.immu_confs['table_name'], immu_client)
         
-        upserts = upsert_maker.make(**kwargs)
+        inserts = upsert_maker.make(**kwargs)
 
         resp = immu_client.sqlExec(f"""
             BEGIN TRANSACTION;
-                {upserts['upsert_string']}
+                {inserts['upsert_string']}
             COMMIT;
-        """, upserts['values'])
+        """, inserts['values'])
         
         ids = {
             'sql_tx_id': resp.txs[0].header.id,
         }
         
-        if 'jsons' in upserts:
+        if 'jsons' in inserts:
             immu_client.useDatabase('jsonsqlfields')
-            resp = immu_client.setAll(upserts['jsons'])
+            resp = immu_client.setAll(inserts['jsons'])
             ids['jsons_tx'] = {
                 'tx_id': resp.id,
                 'verified': resp.verified
             }
-
+        
 
         cls.on_call()
 

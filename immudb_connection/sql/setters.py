@@ -1,11 +1,15 @@
 import json
+from immudb_connection.sql.models import SQLForeign, SQLModel
 from immudb_connection.utils import lowercase_and_add_space
 from django.apps import apps
+from django.db import DEFAULT_DB_ALIAS, connections
 from django.db.models import JSONField, AutoField
 from django.db.models.fields.related import ForeignKey
 
 
-class UpsertMaker:
+connection = connections[DEFAULT_DB_ALIAS]
+
+class InsertMaker:
     def __init__(self, cls, table_name: str, immu_client) -> None:
         self.cls = cls
         self.immu_client = immu_client
@@ -21,6 +25,7 @@ class UpsertMaker:
         self.json_fields = []
         self.fg_fields = []
         self.pk_fields = []
+        self.pks = []
         
         self.auto_increment_field = None
         
@@ -28,6 +33,7 @@ class UpsertMaker:
         self.json_keys = {}
         self.pk_values = {}
         self.append_jsons = {}
+        self.sql_values = {}
     
     
     def _get_class_fg_field(self, field):
@@ -52,6 +58,8 @@ class UpsertMaker:
             
             if field.primary_key:
                 self.pk_fields.append(field_name)
+                self.pks.append(f'{field_name} '
+                                f'{fg_pk.db_type(connection).replace("(", "[").replace(")", "]").upper()}')
     
     
     def _get_class_json_field(self, field):
@@ -70,6 +78,8 @@ class UpsertMaker:
             
         if field.primary_key:
             self.pk_fields.append(field.attname)
+            self.pks.append(f'{field.attname} '
+                            f'{field.db_type(connection).replace("(", "[").replace(")", "]").upper()}')
     
     
     def _get_class_fields(self, **kwargs):
@@ -87,6 +97,7 @@ class UpsertMaker:
         
     def _get_json_value(self, key: str, value: dict):
         self.json_keys[key] = value
+        self.sql_values[key] = value
         
     
     def _get_fg_value(self, key: str, value: object):
@@ -102,20 +113,27 @@ class UpsertMaker:
         app_name = apps.get_containing_app_config(field_model.__module__).label
         obj_name = f'{app_name}_{lowercase_and_add_space(obj_name)}'
         
+        fg_pks = {}
         for pk in obj_pks:
             name = f'{key}__{pk.name}__{obj_name}__fg'
             self.values[name] = getattr(value, pk.name)
+            fg_pks[pk.name] = getattr(value, pk.name)
             
             if key in self.pk_fields:
                 self.pk_values[name] = self.values[name]
+        
+        self.sql_values[key] = SQLForeign(**fg_pks)
     
     
     def _get_normal_value(
         self, key: str, 
         value: str | int | float | bool):
         self.values[key] = value
+        
+        self.sql_values[key] = value
+        
         if key in self.pk_fields:
-            self.pk_values[key] = value   
+            self.pk_values[key] = value 
 
         
     def _get_values(self, **kwargs):
@@ -136,11 +154,11 @@ class UpsertMaker:
             self.values[self.auto_increment_field] = res[0][0] + 1
         
         
-    def _make_upsert_string(self) -> str:
+    def _make_insert_string(self) -> str:
         self.value_fields = ', '.join(self.value_fields)
         self.model_fields = ', '.join(self.model_fields)
         
-        new_insert = f'UPSERT INTO {self.table_name} ({self.model_fields}) ' \
+        new_insert = f'INSERT INTO {self.table_name} ({self.model_fields}) ' \
             f'VALUES ({self.value_fields});'
             
         return new_insert
@@ -162,7 +180,7 @@ class UpsertMaker:
     def make(self, **kwargs) -> dict:
         self._clean_class()
         self._get_class_fields(**kwargs)
-        upsert_string = self._make_upsert_string()
+        upsert_string = self._make_insert_string()
         self._get_values(**kwargs)
         self._make_autoincrement_value_field()
         self._make_json_values()
@@ -170,11 +188,18 @@ class UpsertMaker:
         upsert = {
             'upsert_string': upsert_string,
             'values': self.values,
-            'pks': '',
         }
         
         if len(self.append_jsons) > 0:
             upsert['jsons'] = self.append_jsons
+            
+        # get pks
+        # get values
+        # sql_model = SQLModel(self.pks, **self.sql_values)
+        print(self.sql_values)
+        print(self.pks)
+        sql_model = SQLModel(self.pks, **self.sql_values)
+        # upsert['sql_model'] = sql_model
             
         return upsert
     

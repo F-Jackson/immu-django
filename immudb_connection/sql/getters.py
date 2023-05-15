@@ -1,6 +1,6 @@
 import json
 from immudb_connection.sql.alter import _TableField
-from immudb_connection.sql.models import SQLModel
+from immudb_connection.sql.models import SQLForeign, SQLModel
 
 
 class GetWhere:
@@ -110,7 +110,7 @@ class GetWhere:
             name = value['name']
             
             if recursive_fg_deep <= 0:
-                item[name] = value['values']
+                item[name] = SQLForeign(value['values'])
             else:
                 getter = GetWhere(self.db, table_name, self.immu_client)
                 fg = getter.get(
