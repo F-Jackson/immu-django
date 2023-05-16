@@ -111,6 +111,9 @@ class GetWhere:
     
 
     def _make_time_travel_str(self, time_travel: dict) -> str:
+        if time_travel is None:
+            return ''
+        
         time_travel = ''
         
         for key, value in time_travel.items():
@@ -128,7 +131,12 @@ class GetWhere:
         self,
         limit: int = 1_000,
         offset: int = 0) -> str:
-        return f'LIMIT {limit} OFFSET {offset}'  
+        offset_str = ''
+        if limit is not None:
+            offset_str += f'LIMIT {limit}'
+        if offset is not None:
+            offset_str += f'OFFSET {offset}'
+        return offset_str  
     
     
     def _make_query(
@@ -142,6 +150,8 @@ class GetWhere:
             f'{self._make_where_str(values)} ' \
             f'{self._make_order_str(order_by)}' \
             f'{self._make_offset_str(limit, offset)}'
+        
+        print(query_str)
         
         values = self.immu_client.sqlQuery(query_str)
         

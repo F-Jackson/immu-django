@@ -84,6 +84,14 @@ class InsertMaker:
     
     def _get_class_fields(self, **kwargs):
         for field in self.cls._meta.fields:
+            if isinstance(field, JSONField) and field.name not in kwargs.keys():
+                self._get_class_json_field(field)
+                
+                key = f'{field.name}'
+                self.json_keys[key] = {}
+                self.sql_values[key] = {}
+                continue
+            
             if field.name not in kwargs.keys() and not isinstance(field, AutoField):
                 continue
             
@@ -161,7 +169,7 @@ class InsertMaker:
         
         new_insert = f'INSERT INTO {self.table_name} ({self.model_fields}) ' \
             f'VALUES ({self.value_fields});'
-            
+
         return new_insert
         
         

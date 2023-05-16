@@ -411,10 +411,8 @@ class ImmudbSQL(models.Model):
     # GETTER
     @classmethod
     def get(*,
-        cls, time_travel: dict, 
-        limit: int, offset: int, 
-        order_by: str, recursive_fg_deep: int = 1, 
-        **kwargs) -> SQLModel:
+        cls, order_by: str = None, 
+        recursive_fg_deep: int = 1, **kwargs) -> SQLModel:
         cls.on_call()
         
         getter = GetWhere(
@@ -425,19 +423,17 @@ class ImmudbSQL(models.Model):
         
         values = getter.get(
             size_limit=1, recursive_fg_deep=recursive_fg_deep, 
-            order_by=order_by, time_travel=time_travel, 
-            limit=limit, offset=offset, **kwargs
+            order_by=order_by, **kwargs
         )
         
         return values
         
     
     @classmethod
-    def all(*, 
-        cls, time_travel: dict, 
-        limit: int, offset: int, 
-        order_by: str, 
-        recursive_fg_deep: int = 1) -> list[SQLModel]:
+    def all(
+        cls, *,
+        limit: int = None, offset: int = None, 
+        order_by: str = None, recursive_fg_deep: int = 1) -> list[SQLModel]:
         cls.on_call()
         
         getter = GetWhere(
@@ -448,7 +444,7 @@ class ImmudbSQL(models.Model):
         
         values = getter.get(
             recursive_fg_deep=recursive_fg_deep,
-            order_by=order_by, time_travel=time_travel, 
+            order_by=order_by,
             limit=limit, offset=offset
         )
 
@@ -456,9 +452,12 @@ class ImmudbSQL(models.Model):
     
     
     @classmethod
-    def filter(        
-        cls, order_by: str = None,
-        recursive_fg_deep: int = 1) -> list[SQLModel]:
+    def filter(    
+        cls, *,
+        time_travel: dict = None,
+        limit: int = None, offset: int = None,
+        order_by: str = None,
+        recursive_fg_deep: int = 1, **kwargs) -> list[SQLModel]:
         cls.on_call()
         
         getter = GetWhere(
@@ -469,21 +468,13 @@ class ImmudbSQL(models.Model):
         
         values = getter.get(
             recursive_fg_deep=recursive_fg_deep,
-            order_by=order_by
+            order_by=order_by, 
+            limit=limit, offset=offset,
+            time_travel=time_travel, **kwargs
         )
 
         return values
     
-    
-    @classmethod
-    def exclude(cls, order_by: list[str] = None, **kwargs):
-        pass
-    
-    
-    # BOOL
-    @classmethod
-    def exists(cls, **kwargs):
-        pass
     
 
 @immu_sql_class
