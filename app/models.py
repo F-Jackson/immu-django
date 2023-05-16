@@ -405,7 +405,38 @@ class ImmudbSQL(models.Model):
     
     @classmethod
     def create_mult(cls, obj_list: list[dict]):
-        pass    
+        cls.on_call()
+        
+        inserts_list = {
+            'insert_string': [],
+            'values': {},
+            'jsons': {},
+            'sql_models': []
+        }
+        
+        for i in range(len(obj_list)):
+            insert_maker = InsertMaker(cls, cls.immu_confs['table_name'], immu_client, i)
+            inserts = insert_maker.make(**obj_list[i])
+            
+            inserts_list['insert_string'].append(inserts['insert_string'])
+            inserts_list['values'].update(inserts['values'])
+            inserts_list['jsons'].update(inserts['jsons'])
+            inserts_list['sql_models'].append(inserts['sql_model'])
+            
+        insert_string = ' '.join(inserts_list['insert_string'])
+        resp = immu_client.sqlExec(f"""
+            BEGIN TRANSACTION;
+                {insert_string}
+            COMMIT;
+        """, inserts_list['values'])
+        
+        if len(inserts_list['jsons']) > 0:
+            immu_client.useDatabase('jsonsqlfields')
+            resp = immu_client.setAll(inserts_list['jsons'])
+
+        cls.on_call()
+        
+        return inserts_list['sql_models']
         
     
     # GETTER

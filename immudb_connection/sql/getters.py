@@ -1,6 +1,6 @@
 import json
 from immudb_connection.sql.alter import _TableField
-from immudb_connection.sql.models import SQLModel
+from immudb_connection.sql.models import SQLERROR, SQLModel
 
 
 class GetWhere:
@@ -217,17 +217,20 @@ class GetWhere:
             fg_fields = {}
             item = {}
             
-            for field, value in zip(self.table_fields_names, value):
-                if str(field).startswith('__json__'):
-                    self._get_json_value(item, field, value)
-                elif str(field).endswith('__fg'):
-                    self._get_fg_field(fg_fields, field, value)
-                else:
-                    item[field] = value
-            
-            self._get_fg_objs(item, fg_fields)
-            
-            items.append(item)
+            try:
+                for field, value in zip(self.table_fields_names, value):
+                    if str(field).startswith('__json__'):
+                        self._get_json_value(item, field, value)
+                    elif str(field).endswith('__fg'):
+                        self._get_fg_field(fg_fields, field, value)
+                    else:
+                        item[field] = value
+                
+                self._get_fg_objs(item, fg_fields)
+                
+                items.append(item)
+            except Exception as e:
+                items.append(SQLERROR(str(e)))
             
             itens_count += 1
             

@@ -49,21 +49,35 @@ class SQLModel:
     def __dir__(self):
         return [k[1:] for k in vars(self) if k.startswith("_")]
     
-    # def save(self):
-    #     model_fields = []
-    #     value_fields = []
-    #     values = {}
-    
-    #     pk_names = [pk.split(' ', 1)[0] for pk in self._pks]
-    #     for key, value in self.new_atrs.items():
-    #         if key not in pk_names:
-    #             model_fields.append(key)
-    #             value_fields.append(f'@{key}')
-    #             values[key] = value
-            
-    #     model_fields = ' '.join(model_fields)
-    #     value_fields = ' '.join(value_fields)
+    def save(self):
+        model_fields = []
+        value_fields = []
+        values = {}
         
-    #     upserr_str = f'UPSERT {model_fields} INTO {self._table_name} VALUES {value_fields}'
-    #     resp = self._immu_client.sqlExec(upserr_str, values)
-    #     return resp
+        pk_names = [pk.split(' ', 1)[0] for pk in self._pks]
+        for key, value in self.new_atrs.items():
+            if key not in pk_names:
+                model_fields.append(key)
+                value_fields.append(f'@{key}')
+                values[key] = value
+            
+        model_fields = ' '.join(model_fields)
+        value_fields = ' '.join(value_fields)
+        
+        upserr_str = f'UPSERT {model_fields} INTO {self._table_name} VALUES {value_fields}'
+        resp = self._immu_client.sqlExec(upserr_str, values)
+        return resp
+
+
+class SQLERROR:
+    def __init__(self, error: str):
+        self._error = error
+        
+    @property
+    def error(self):
+        return self._error
+    
+    def __getattr__(self, name):
+        if name.startswith("_"):
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+        return getattr(self, f'_{name}')

@@ -10,11 +10,13 @@ from django.db.models.fields.related import ForeignKey
 connection = connections[DEFAULT_DB_ALIAS]
 
 class InsertMaker:
-    def __init__(self, cls, table_name: str, immu_client) -> None:
+    def __init__(self, cls, table_name: str, immu_client, number: int = 0) -> None:
         self.cls = cls
         self.immu_client = immu_client
         
         self.table_name = table_name
+        
+        self.number = number
         
         self._clean_class()
         
@@ -54,7 +56,7 @@ class InsertMaker:
         for fg_pk in fg_pks:
             field_name = f'{field.name}__{fg_pk.name}__{obj_name}__fg'
             self.model_fields.append(field_name)
-            self.value_fields.append(f'@{field_name}')
+            self.value_fields.append(f'@{field_name}{self.number}')
             
             if field.primary_key:
                 self.pk_fields.append(field_name)
@@ -66,12 +68,12 @@ class InsertMaker:
         self.json_fields.append(field.attname)
         
         self.model_fields.append(f'__json__{field.name}')
-        self.value_fields.append(f'@__json__{field.name}')
+        self.value_fields.append(f'@__json__{field.name}{self.number}')
     
     
     def _get_class_normal_field(self, field):
         self.model_fields.append(field.attname)
-        self.value_fields.append(f'@{field.attname}')
+        self.value_fields.append(f'@{field.attname}{self.number}')
         
         if isinstance(field, AutoField):
             self.auto_increment_field = field.attname
@@ -123,7 +125,7 @@ class InsertMaker:
         fg_pks = {}
         for pk in obj_pks:
             name = f'{key}__{pk}__{obj_name}__fg'
-            self.values[name] = getattr(value, pk)
+            self.values[f'{name}{self.number}'] = getattr(value, pk)
             fg_pks[pk] = getattr(value, pk)
             
             if key in self.pk_fields:
@@ -135,7 +137,7 @@ class InsertMaker:
     def _get_normal_value(
         self, key: str, 
         value: str | int | float | bool):
-        self.values[key] = value
+        self.values[f'{key}{self.number}'] = value
         
         self.sql_values[key] = value
         
@@ -158,12 +160,12 @@ class InsertMaker:
             res = self.immu_client.sqlQuery(
                 f'SELECT MAX({self.auto_increment_field}) FROM {self.table_name}'
             )
-            self.values[self.auto_increment_field] = res[0][0] + 1
+            self.values[f'{self.auto_increment_field}{self.number}'] = int(res[0][0]) + 1 + self.number
             
-            self.sql_values[self.auto_increment_field] = res[0][0] + 1
+            self.sql_values[self.auto_increment_field] = int(res[0][0]) + 1 + self.number
             
             if self.auto_increment_field in self.pk_fields:
-                self.pk_values[self.auto_increment_field] = res[0][0] + 1
+                self.pk_values[self.auto_increment_field] = int(res[0][0]) + 1 + self.number
  
         
     def _make_insert_string(self) -> str:
@@ -185,11 +187,11 @@ class InsertMaker:
             field_name = f'__json__{field}'
             
             key = f'@{self.table_name}@{field}@{field_value}'
-            self.values[field_name] = key
+            self.values[f'{field_name}{self.number}'] = key
             self.append_jsons[key.encode()] = json.dumps(self.json_keys[field]).encode()    
         
         
-    def make(self, **kwargs) -> dict:
+    def make(self, number: int = None, **kwargs) -> dict:
         self._clean_class()
         self._get_class_fields(**kwargs)
         insert_string = self._make_insert_string()
