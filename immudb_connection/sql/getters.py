@@ -49,40 +49,47 @@ class GetWhere:
         return order_by_str
     
     
-    def _where(self, key: str, value: str | int | float, where_str: list[str]):
-        # if type(value) != str and type(value) != int and type(value) != float:
-        #     raise ValueError(f'kwargs must int, str or float')
-        
+    def _where(self, key: str, org_value: str | int | float, where_str: list[str]):        
         if len(where_str) == 0:
             where_str.append('WHERE ')
         else:
             where_str.append(' AND ')
             
-        if type(value) == str:
-            value = f"'{value}'"
+        if type(org_value) == str:
+            value = f"'{org_value}'"
             
-        ########
         keys = key.split('__', 1)
         if len(keys) > 1:
             key = keys[0]
-            match keys[1]:
+            match keys[-1]:
                 case 'not':
-                    where_str.append(f"{key} <> {value}")
+                    return where_str.append(f"{key} <> {value}")
                 case 'in':
-                    where_str.append(f'{key} IN ({", ".join(value)})')
+                    return where_str.append(f'{key} IN ({", ".join(value)})')
                 case 'not_in':
-                    where_str.append(f'{key} NOT IN ({", ".join(value)})')
+                    return where_str.append(f'{key} NOT IN ({", ".join(value)})')
                 case 'gt':
-                    where_str.append(f"{key} > {value}")
+                    return where_str.append(f"{key} > {value}")
                 case 'gte':
-                    where_str.append(f"{key} >= {value}")
+                    return where_str.append(f"{key} >= {value}")
                 case 'lt':
-                    where_str.append(f"{key} < {value}")
+                    return where_str.append(f"{key} < {value}")
                 case 'lte':
-                    where_str.append(f"{key} <= {value}")
-        #########
+                    return where_str.append(f"{key} <= {value}")
+                case 'startswith':
+                    return where_str.append(f"{key} LIKE '^{org_value}'")
+                case 'endswith':
+                    return where_str.append(f"{key} LIKE '{org_value}$'")
+                case 'contains':
+                    return where_str.append(f"{key} LIKE '.*{org_value}.*'")
+                case 'not_contains':
+                    return where_str.append(f"{key} NOT LIKE '.*{org_value}.*'")
+                case 'regex':
+                    return where_str.append(f"{key} LIKE '{org_value}'")
+                case _:
+                    raise ValueError('__*** in key not allowed')
             
-        where_str.append(f"{key} = {value}")
+        return where_str.append(f"{key} = {value}")
     
     
     def _make_where_str(self, values: dict = None) -> str:
@@ -126,6 +133,7 @@ class GetWhere:
             
         time_travel += ' '
     
+    
     def _make_offset_str(
         self,
         limit: int = 1_000,
@@ -133,7 +141,9 @@ class GetWhere:
         return f'LIMIT {limit} OFFSET {offset}'
     
     
-    def _make_query(self, values: dict = None, order_by: str = None) -> list[tuple]:
+    def _make_query(
+        self, values: dict = None, 
+        order_by: str = None) -> list[tuple]:
         query_str = f'SELECT * FROM {self.table_name} ' \
             f'{self._make_time_travel_str()} ' \
             f'{self._make_where_str(values)} ' \
