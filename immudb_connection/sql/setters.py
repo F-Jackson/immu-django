@@ -161,6 +161,9 @@ class InsertMaker:
             self.values[self.auto_increment_field] = res[0][0] + 1
             
             self.sql_values[self.auto_increment_field] = res[0][0] + 1
+            
+            if self.auto_increment_field in self.pk_fields:
+                self.pk_values[self.auto_increment_field] = res[0][0] + 1
  
         
     def _make_insert_string(self) -> str:

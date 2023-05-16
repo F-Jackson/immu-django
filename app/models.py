@@ -403,6 +403,7 @@ class ImmudbSQL(models.Model):
 
         return inserts['sql_model']
     
+    
     @classmethod
     def create_mult(cls, obj_list: list[dict]):
         pass    
@@ -410,8 +411,8 @@ class ImmudbSQL(models.Model):
     
     # GETTER
     @classmethod
-    def get(*,
-        cls, order_by: str = None, 
+    def get(
+        cls, *, order_by: str = None, 
         recursive_fg_deep: int = 1, **kwargs) -> SQLModel:
         cls.on_call()
         

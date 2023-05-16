@@ -57,6 +57,8 @@ class GetWhere:
             
         if type(org_value) == str:
             value = f"'{org_value}'"
+        else:
+            value = org_value
             
         keys = key.split('__', 1)
         if len(keys) > 1:
@@ -65,9 +67,11 @@ class GetWhere:
                 case 'not':
                     return where_str.append(f"{key} <> {value}")
                 case 'in':
-                    return where_str.append(f'{key} IN ({", ".join(value)})')
+                    in_str = [f"'{org}'" for org in org_value]
+                    return where_str.append(f'{key} IN ({", ".join(in_str)})')
                 case 'not_in':
-                    return where_str.append(f'{key} NOT IN ({", ".join(value)})')
+                    in_str = [f"'{org}'" for org in org_value]
+                    return where_str.append(f'{key} NOT IN ({", ".join(in_str)})')
                 case 'gt':
                     return where_str.append(f"{key} > {value}")
                 case 'gte':
@@ -106,7 +110,7 @@ class GetWhere:
                     self._where(fg, getattr(value, pk), where_str)
             else:      
                 self._where(key, value, where_str)
-        
+
         return ''.join(where_str)
     
 
@@ -151,18 +155,19 @@ class GetWhere:
             f'{self._make_order_str(order_by)}' \
             f'{self._make_offset_str(limit, offset)}'
         
-        print(query_str)
-        
         values = self.immu_client.sqlQuery(query_str)
         
         return values
     
     
     def _get_json_value(self, item: dict, field: str, value: str):
-        name = field.strip('__json__')
+        name = field.split('__json__', 1)[-1]
         self.immu_client.useDatabase('jsonsqlfields')
         
-        value = self.immu_client.get(value.encode()).value.decode()
+        if value is not None:
+            value = self.immu_client.get(value.encode()).value.decode()
+        else:
+            value = '{}'
         
         self.immu_client.useDatabase(self.db)
         
