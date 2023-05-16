@@ -110,26 +110,16 @@ class GetWhere:
         return ''.join(where_str)
     
 
-    def _make_time_travel_str(
-        self,
-        since: str | int = None,
-        until: str | int = None,
-        before: str | int = None) -> str:
+    def _make_time_travel_str(self, time_travel: dict) -> str:
         time_travel = ''
-        if type(since) == int:
-            time_travel += f'SINCE TX {since}'
-        elif type(since) == str:
-            time_travel += f'SINCE {since}'
-            
-        if type(until) == int:
-            time_travel += f'UNTIL TX {until}'
-        elif type(until) == str:
-            time_travel += f'UNTIL {until}'
-            
-        if type(before) == int:
-            time_travel += f'BEFORE TX {before}'
-        elif type(before) == str:
-            time_travel += f'BEFORE {before}'
+        
+        for key, value in time_travel.items():
+            if type(value) == int:
+                time_travel += f'{key.upper()} TX {value}'
+            elif type(value) == str:
+                time_travel += f'{key.upper()} {value}'
+            else:
+                raise ValueError('Time travel value error')
             
         time_travel += ' '
     
@@ -138,17 +128,20 @@ class GetWhere:
         self,
         limit: int = 1_000,
         offset: int = 0) -> str:
-        return f'LIMIT {limit} OFFSET {offset}'
+        return f'LIMIT {limit} OFFSET {offset}'  
     
     
     def _make_query(
         self, values: dict = None, 
+        time_travel: dict = None,
+        limit: int = 1_000,
+        offset: int = 0,
         order_by: str = None) -> list[tuple]:
         query_str = f'SELECT * FROM {self.table_name} ' \
-            f'{self._make_time_travel_str()} ' \
+            f'{self._make_time_travel_str(time_travel)} ' \
             f'{self._make_where_str(values)} ' \
             f'{self._make_order_str(order_by)}' \
-            f'{self._make_offset_str()}'
+            f'{self._make_offset_str(limit, offset)}'
         
         values = self.immu_client.sqlQuery(query_str)
         
@@ -198,11 +191,13 @@ class GetWhere:
     def get(
         self, *, size_limit: int = 1_000, 
         recursive_fg_deep: int = 0, order_by: str = None, 
+        time_travel: dict = None, 
+        limit: int = 1_000, offset: int = 0,
         **kwargs) -> list[dict] | dict:
         items = []
         itens_count = 0
         
-        values = self._make_query(kwargs, order_by)
+        values = self._make_query(kwargs, time_travel, limit, offset, order_by)
         
         for value in values:
             if itens_count >= size_limit:

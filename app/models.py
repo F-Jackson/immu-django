@@ -410,9 +410,11 @@ class ImmudbSQL(models.Model):
     
     # GETTER
     @classmethod
-    def get(
-        cls, order_by: str = None, 
-        recursive_fg_deep: int = 1, **kwargs) -> SQLModel:
+    def get(*,
+        cls, time_travel: dict, 
+        limit: int, offset: int, 
+        order_by: str, recursive_fg_deep: int = 1, 
+        **kwargs) -> SQLModel:
         cls.on_call()
         
         getter = GetWhere(
@@ -423,15 +425,18 @@ class ImmudbSQL(models.Model):
         
         values = getter.get(
             size_limit=1, recursive_fg_deep=recursive_fg_deep, 
-            order_by=order_by, **kwargs
+            order_by=order_by, time_travel=time_travel, 
+            limit=limit, offset=offset, **kwargs
         )
         
         return values
         
     
     @classmethod
-    def all(
-        cls, order_by: str = None,
+    def all(*, 
+        cls, time_travel: dict, 
+        limit: int, offset: int, 
+        order_by: str, 
         recursive_fg_deep: int = 1) -> list[SQLModel]:
         cls.on_call()
         
@@ -443,7 +448,8 @@ class ImmudbSQL(models.Model):
         
         values = getter.get(
             recursive_fg_deep=recursive_fg_deep,
-            order_by=order_by
+            order_by=order_by, time_travel=time_travel, 
+            limit=limit, offset=offset
         )
 
         return values
