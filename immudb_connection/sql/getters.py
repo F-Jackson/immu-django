@@ -1,6 +1,6 @@
 import json
 from immudb_connection.sql.alter import _TableField
-from immudb_connection.sql.models import SQLForeign, SQLModel
+from immudb_connection.sql.models import SQLModel
 
 
 class GetWhere:
@@ -103,7 +103,7 @@ class GetWhere:
         where_str = []
         
         for key, value in values.items():
-            if isinstance(value, SQLForeign) or isinstance(value, SQLModel):
+            if isinstance(value, SQLModel):
                 for pk in value._pks:
                     pk = pk.split(' ', 1)[0]
                     fg = [fd for fd in self.table_fields_names if fd.startswith(f'{key}__{pk}')][0]
@@ -185,27 +185,23 @@ class GetWhere:
         fg_fields[fg[2]]['values'][fg[1]] = value
     
     
-    def _get_fg_objs(self, item: dict, fg_fields: dict, recursive_fg_deep: int = 0):
+    def _get_fg_objs(self, item: dict, fg_fields: dict):
         for key, value in fg_fields.items():
             table_name = key
             name = value['name']
             
-            if recursive_fg_deep <= 0:
-                item[name] = SQLForeign(value['values'])
-            else:
-                getter = GetWhere(self.db, table_name, self.immu_client)
-                fg = getter.get(
-                    size_limit=1, 
-                    recursive_fg_deep=recursive_fg_deep-1,
-                    order_by=None,
-                    **value['values']
-                )
-                item[name] = fg
+            getter = GetWhere(self.db, table_name, self.immu_client)
+            fg = getter.get(
+                size_limit=1, 
+                order_by=None,
+                **value['values']
+            )
+            item[name] = fg
     
     
     def get(
         self, *, size_limit: int = 1_000, 
-        recursive_fg_deep: int = 0, order_by: str = None, 
+        order_by: str = None, 
         time_travel: dict = None, 
         limit: int = 1_000, offset: int = 0,
         **kwargs) -> list[dict] | dict:
@@ -229,7 +225,7 @@ class GetWhere:
                 else:
                     item[field] = value
             
-            self._get_fg_objs(item, fg_fields, recursive_fg_deep)
+            self._get_fg_objs(item, fg_fields)
             
             items.append(item)
             
@@ -239,9 +235,22 @@ class GetWhere:
             raise Exception('Cant find any itens')
         
         if size_limit <= 1:
-            obj = SQLModel(self.table_pks, **items[0])
+            obj = SQLModel(
+                immu_client=self.immu_client, 
+                table_name=self.table_name,
+                pks=self.table_pks, 
+                **items[0]
+            )
             return obj
         else:
-            objs = [SQLModel(self.table_pks, **item) for item in items]
+            objs = [
+                SQLModel(
+                    immu_client=self.immu_client, 
+                    table_name=self.table_name,
+                    pks=self.table_pks, 
+                    **item
+                )
+                for item in items
+            ]
             return objs
     

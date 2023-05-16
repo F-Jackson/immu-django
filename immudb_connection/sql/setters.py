@@ -1,5 +1,5 @@
 import json
-from immudb_connection.sql.models import SQLForeign, SQLModel
+from immudb_connection.sql.models import SQLModel
 from immudb_connection.utils import lowercase_and_add_space
 from django.apps import apps
 from django.db import DEFAULT_DB_ALIAS, connections
@@ -205,7 +205,12 @@ class InsertMaker:
         if len(self.append_jsons) > 0:
             insert['jsons'] = self.append_jsons
             
-        insert['sql_model'] = SQLModel(self.pks, **self.sql_values)
+        insert['sql_model'] = SQLModel(
+            immu_client=self.immu_client, 
+            table_name=self.table_name, 
+            pks=self.pks, 
+            **self.sql_values
+        )
             
         return insert
     

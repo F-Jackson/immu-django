@@ -397,7 +397,6 @@ class ImmudbSQL(models.Model):
         if 'jsons' in inserts:
             immu_client.useDatabase('jsonsqlfields')
             resp = immu_client.setAll(inserts['jsons'])
-        
 
         cls.on_call()
 
@@ -412,8 +411,8 @@ class ImmudbSQL(models.Model):
     # GETTER
     @classmethod
     def get(
-        cls, *, order_by: str = None, 
-        recursive_fg_deep: int = 1, **kwargs) -> SQLModel:
+        cls, *, order_by: str = None,
+        **kwargs) -> SQLModel:
         cls.on_call()
         
         getter = GetWhere(
@@ -423,7 +422,7 @@ class ImmudbSQL(models.Model):
         )
         
         values = getter.get(
-            size_limit=1, recursive_fg_deep=recursive_fg_deep, 
+            size_limit=1,
             order_by=order_by, **kwargs
         )
         
@@ -434,7 +433,7 @@ class ImmudbSQL(models.Model):
     def all(
         cls, *,
         limit: int = None, offset: int = None, 
-        order_by: str = None, recursive_fg_deep: int = 1) -> list[SQLModel]:
+        order_by: str = None) -> list[SQLModel]:
         cls.on_call()
         
         getter = GetWhere(
@@ -444,7 +443,6 @@ class ImmudbSQL(models.Model):
         )
         
         values = getter.get(
-            recursive_fg_deep=recursive_fg_deep,
             order_by=order_by,
             limit=limit, offset=offset
         )
@@ -457,8 +455,7 @@ class ImmudbSQL(models.Model):
         cls, *,
         time_travel: dict = None,
         limit: int = None, offset: int = None,
-        order_by: str = None,
-        recursive_fg_deep: int = 1, **kwargs) -> list[SQLModel]:
+        order_by: str = None, **kwargs) -> list[SQLModel]:
         cls.on_call()
         
         getter = GetWhere(
@@ -468,7 +465,6 @@ class ImmudbSQL(models.Model):
         )
         
         values = getter.get(
-            recursive_fg_deep=recursive_fg_deep,
             order_by=order_by, 
             limit=limit, offset=offset,
             time_travel=time_travel, **kwargs
