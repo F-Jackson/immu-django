@@ -352,16 +352,7 @@ def immu_sql_class(cls):
         
     return cls
 
-class ImmudbSQL(models.Model):
-    # name = models.CharField(max_length=255, primary_key=True)
-    # number = models.BigAutoField(primary_key=True)
-    # foreing = models.ForeignKey(TestSQL, on_delete=models.CASCADE)
-    # tt = models.IntegerField(primary_key=True)
-    # test = models.JSONField()
-    # test2 = models.JSONField()
-    # po = models.CharField(max_length=120, null=True)
-    
-    
+class ImmudbSQL(models.Model):    
     # ABC VARS
     immu_confs = IMMU_CONFS_BASE_KEY_VALUE
     
