@@ -239,6 +239,7 @@ class GetWhere:
         
         if size_limit <= 1:
             obj = SQLModel(
+                db=self.db,
                 immu_client=self.immu_client, 
                 table_name=self.table_name,
                 pks=self.table_pks, 
@@ -248,6 +249,7 @@ class GetWhere:
         else:
             objs = [
                 SQLModel(
+                    db=self.db,
                     immu_client=self.immu_client, 
                     table_name=self.table_name,
                     pks=self.table_pks, 

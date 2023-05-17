@@ -10,7 +10,8 @@ from django.db.models.fields.related import ForeignKey
 connection = connections[DEFAULT_DB_ALIAS]
 
 class InsertMaker:
-    def __init__(self, cls, table_name: str, immu_client, number: int = 0) -> None:
+    def __init__(self, cls, db: str, table_name: str, immu_client, number: int = 0) -> None:
+        self.db = db
         self.cls = cls
         self.immu_client = immu_client
         
@@ -128,8 +129,8 @@ class InsertMaker:
             self.values[f'{name}{self.number}'] = getattr(value, pk)
             fg_pks[pk] = getattr(value, pk)
             
-            if key in self.pk_fields:
-                self.pk_values[name] = self.values[name]
+            if name in self.pk_fields:
+                self.pk_values[name] = getattr(value, pk)
         
         self.sql_values[key] = value
     
@@ -208,6 +209,7 @@ class InsertMaker:
             insert['jsons'] = self.append_jsons
             
         insert['sql_model'] = SQLModel(
+            db=self.db,
             immu_client=self.immu_client, 
             table_name=self.table_name, 
             pks=self.pks, 

@@ -23,13 +23,14 @@ set_collections_to_unique, \
 set_not_verified_refs_and_collections_in_multiple, \
 set_refs_to_unique, \
 set_verified_refs_and_collections_in_multiple
+
 from immudb_connection.sql.alter import TableAlter
 from immudb_connection.sql.creators import TableCreator
 from immudb_connection.sql.getters import GetWhere
 from immudb_connection.sql.models import SQLModel
 from immudb_connection.sql.setters import InsertMaker
-from immudb_connection.utils import ImmuForeignKey
 
+from immudb_connection.utils import ImmuForeignKey
 from immudb_connection.utils import lowercase_and_add_space, random_key
 
 
@@ -48,7 +49,6 @@ def immu_key_value_class(cls):
         
     return cls
 
-@immu_key_value_class
 class ImmudbKeyField(models.Model):
     # DONT TOUCH
     verified = models.BooleanField(default=False)
@@ -375,7 +375,7 @@ class ImmudbSQL(models.Model):
     def create(cls, **kwargs) -> int:
         cls.on_call()
         
-        insert_maker = InsertMaker(cls, cls.immu_confs['table_name'], immu_client)
+        insert_maker = InsertMaker(cls, cls.immu_confs['database'], cls.immu_confs['table_name'], immu_client)
         
         inserts = insert_maker.make(**kwargs)
 
@@ -406,7 +406,7 @@ class ImmudbSQL(models.Model):
         }
         
         for i in range(len(obj_list)):
-            insert_maker = InsertMaker(cls, cls.immu_confs['table_name'], immu_client, i)
+            insert_maker = InsertMaker(cls, cls.immu_confs['database'], cls.immu_confs['table_name'], immu_client, i)
             inserts = insert_maker.make(**obj_list[i])
             
             inserts_list['insert_string'].append(inserts['insert_string'])
@@ -493,8 +493,7 @@ class ImmudbSQL(models.Model):
         )
 
         return values
-    
-    
+      
 
 @immu_sql_class
 class TestSQL(ImmudbSQL):
@@ -506,3 +505,4 @@ class TestSQL(ImmudbSQL):
 class Test2SQL(ImmudbSQL):
     num = models.IntegerField(primary_key=True)
     fg = ImmuForeignKey(TestSQL, primary_key=True)
+    json = models.JSONField()
