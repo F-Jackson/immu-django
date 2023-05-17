@@ -8,6 +8,22 @@ class SQLModel:
         self, immu_client = None, 
         table_name: str = None, db: str = None, 
         pks: list[str] = None, **kwargs):
+        """
+            INFO:
+                Object of the table row
+                
+            USE:
+                You can get and set usin: object.atribute.
+                You can update the table row using the save method.
+        
+            Args:
+                _pks (list[str]): primarys keys of the table,\n
+                _immu_client (ImmudbClient): client of immudb,\n
+                _table_name (str): name of the table,\n
+                _db (str): name of the database of the table,\n
+                args (args): args of the table row
+        """
+        
         if pks is not None:
             self._pks = pks
             
@@ -55,6 +71,10 @@ class SQLModel:
         return [k[1:] for k in vars(self) if k.startswith("_")]
     
     def save(self):
+        """
+            Update the table row with the object atributes
+        """
+        
         self._immu_client.useDatabase(self._db)
 
         model_fields = []
@@ -118,11 +138,22 @@ class SQLModel:
 
 
 class SQLERROR:
+    """
+        INFO:
+            Object of the error given while trying to get the SQLModel
+        
+        USE:
+            Use object.error to see the error that was given
+            
+        Args:
+            error (str): error that was given while trying to get the SQLModel
+    """
+    
     def __init__(self, error: str):
         self._error = error
         
     @property
-    def error(self):
+    def error(self) -> str:
         return self._error
     
     def __getattr__(self, name):

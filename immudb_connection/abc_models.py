@@ -34,7 +34,13 @@ from immudb_connection.utils import lowercase_and_add_space, random_key
 
 
 immu_client = starting_db()
+"""
+Client of immudb
+"""
 databases = immu_client.databaseList()
+"""
+List of all databases inside your immudb
+"""
 
 def immu_key_value_class(cls):
     cls.immu_confs = cls.immu_confs.copy()
@@ -375,15 +381,14 @@ class ImmudbSQL(models.Model):
             Foreign key fields can't have another class that have a foreign key field.
             
         ALLOWED VAR TYPES:
-            models.IntegerField,
-            models.FloatField,
-            models.JsonField,
-            models.BigAutoField,
-            models.CharField,
+            models.IntegerField,\n
+            models.FloatField,\n
+            models.JsonField,\n
+            models.BigAutoField,\n
+            models.CharField,\n
             ImmuForeignKey
             
         ALERT:
-            Don't overwrite these variables: immu_confs.\n
             Don't overwrite Meta class.\n
             Don't overwrite te class methods.\n
             Only snake case for variables is allowed.\n
@@ -405,6 +410,12 @@ class ImmudbSQL(models.Model):
     
     # ABC VARS
     immu_confs = IMMU_CONFS_BASE_KEY_VALUE
+    """
+        Configs for immu abstract class
+        
+        Kwargs:
+            database (str): name of the database to ultilized for the class
+    """
     
     # CONFIG METHODS     
     class Meta:
@@ -440,6 +451,7 @@ class ImmudbSQL(models.Model):
                         ImmuForeignKey must be given an SQLModel object
                 \n
                 ]
+                
             Returns:
                 SQLModel: Return an object with given atributes after saving
         """
@@ -476,6 +488,7 @@ class ImmudbSQL(models.Model):
                         JsonField must be given an dict object,\n
                         ImmuForeignKey must be given an SQLModel object
                     ]
+                    
             Returns:
                 list[SQLModel]: Return an object with given atributes after saving
         """
@@ -545,6 +558,7 @@ class ImmudbSQL(models.Model):
                     ]
                 \n
                 ]
+                
             Returns:
                 SQLModel: Return an object that was retrived by the search
         """
@@ -577,6 +591,7 @@ class ImmudbSQL(models.Model):
                 order_by (string): order by an attribute, put '-'(negative value) in the beginning of the string for reverse order,\n
                 limit (int): limit size of the retriven objecs list,\n
                 offset (int): start search from index\n
+                
             Returns:
                 list[SQLModel]: Return all objects inside the table
         """
@@ -635,6 +650,7 @@ class ImmudbSQL(models.Model):
                     ]
                 \n
                 ]
+                
             Returns:
                 list[SQLModel]: Return all objects inside the table
         """

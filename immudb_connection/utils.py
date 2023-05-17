@@ -32,6 +32,19 @@ def lowercase_and_add_space(text: str) -> str:
 
 
 class ImmuForeignKey(models.ForeignKey):
+    """
+        INFO:
+            Class for 'ImmudbSQL' foreign key atribute.
+        
+        USE:
+            Put it inside a new model, place a class that hierarchies 'ImmudbSQL' with the same database and chose if you want it to be a primary key.
+            
+        ALERT:
+            This can't be append as new field inside a table that already exists.\n
+            This can't be rename inside the table.\n
+            Can't have another class that have a foreign key field.
+    """
+    
     def __init__(self, to, **kwargs):
         kwargs.setdefault('on_delete', models.CASCADE)
         super().__init__(to, **kwargs)
