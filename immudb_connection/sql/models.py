@@ -1,3 +1,4 @@
+import json
 from immudb_connection.sql.alter import _TableField
 from immudb_connection.sql.constants import NOT_FIELDS
 
@@ -70,9 +71,7 @@ class SQLModel:
             and k not in NOT_FIELDS
         }
         
-        jsons = {}
-                    
-            
+        jsons = {}    
 
         for table in tables:
             table_field = _TableField(table)
@@ -89,32 +88,33 @@ class SQLModel:
                     else:
                         field_value += f'{name}:{values[name]}@'
                     
-                key = f'@{self.table_name}@{table_field.name}@{field_value}'
+                key = f'@{self.table_name}@{true_name}@{field_value}'
                 
-                jsons[table_field.name] = {'value': values[true_name], 'key': key}
+                model_fields.append(table_field.name)
+                value_fields[table_field.name] = key
+                jsons[key.encode()] = json.dumps(values[true_name]).encode()
             elif table_field.name.endswith('__fg'):
-                pass
+                fg = str(table_field.name).split('__')
+                
+                model_fields.append(table_field.name)
+                value_fields[table_field.name] = getattr(values[fg[0]], fg[1])
             else:
                 model_fields.append(table_field.name)
                 value_fields[table_field.name] = values[table_field.name]
-            pass
-
-        print(model_fields)
-        print(value_fields)
-        print(jsons)
     
-        # for key, value in self.new_atrs.items():
-        #     model_fields.append(key)
-        #     value_fields.append(f'@{key}')
-        #     values[key] = value
+        model_values_fields = ', '.join([f'@{field}' for field in model_fields])    
+        model_fields = ', '.join(model_fields)
         
-        # model_values_fields = ', '.join([f'@{field}' for field in model_fields])    
-        # model_fields = ', '.join(model_fields)
-        # value_fields = ' '.join(value_fields)
+        upsert_str = f'UPSERT INTO {self._table_name} ({model_fields}) VALUES ({model_values_fields});'
+        resp = self._immu_client.sqlExec(upsert_str, value_fields)
         
-        # upserr_str = f'UPSERT {model_fields} INTO {self._table_name} VALUES {value_fields}'
-        # resp = self._immu_client.sqlExec(upserr_str, values)
-        # return resp
+        if len(jsons) > 0:
+            self.immu_client.useDatabase('jsonsqlfields')
+            resp = self.immu_client.setAll(jsons)
+        
+        self._immu_client.useDatabase(self._db)
+        
+        print(f'Model {self.__str__()} updated')
 
 
 class SQLERROR:

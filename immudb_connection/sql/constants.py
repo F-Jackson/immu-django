@@ -1,5 +1,6 @@
 NOT_FIELDS = (
     'pks',
     'table_name',
-    'immu_client'
+    'immu_client',
+    'db'
 )
