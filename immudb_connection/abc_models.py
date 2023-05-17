@@ -336,12 +336,17 @@ class ImmudbKeyField(models.Model):
 
 def immu_sql_class(cls):
     """
-        Decorator for load immu_confs, create table and alter table.
+        INFO:
+            Decorator for load immu_confs, create table and alter table.
         
-        PUT THIS DECORATOR ON EVERY MODEL THAT HIERARCHYS 'ImmudbSQL'
+        USE:
+            Put this decorator on every model that hierarchys 'ImmudbSQL'
     """
+    
+    # COPYING IMMUCONFS FROM BASE CLASS
     cls.immu_confs = cls.immu_confs.copy()
     
+    # MAKING TABLE NAME FOR SQL
     table_name = f'{apps.get_containing_app_config(cls.__module__).label}_{lowercase_and_add_space(cls.__name__)}'
     
     # CREATE TABLE
@@ -352,11 +357,42 @@ def immu_sql_class(cls):
     table_alter = TableAlter(immu_client, table_name, db_fields, cls.__name__)
     table_alter.alter()
         
+    # PUTING TABLE NAME INSIDE IMMUCONFS
     cls.immu_confs['table_name'] = table_name
         
     return cls
 
 class ImmudbSQL(models.Model):    
+    """
+        INFO:
+            Abstract class for use immudb inside Django
+        
+        USE:
+            Put this class the only parent of a class that you want to use a sql model for immudb.\n
+            Put an 'immu_sql_class' decorator on the class that you want to use a sql model for immudb.\n
+            If you want to add a json field don't place anything inside of it.\n
+            If you want to add a foreign key field use the 'ImmuForeignKey' class, place a class that hierarchies 'ImmudbSQL' and chose if you want it to be a primary key.\n
+            Foreign key fields can't have another class that have a foreign key field 
+            
+        ALERT:
+            Don't overwrite these variables: immu_confs.\n
+            Only snake case for variables is allowed.\n
+            BigAutofield must be a primary key
+            
+        NEW_FIELDS:
+            To add a new field just add a new variable.\n
+            When placing a new field put 'null=True' inside it.\n
+            Big autofields is not allowed as new fields.\n
+            New primarys keys are not allowed.\n
+            Foreign key fields is not allowed as new field
+            
+        RENAME_FIELDS:
+            To rename just change the name of a variable.\n
+            Don't try to rename primary keys fields.\n
+            Json fields inst allowed to be renamed.\n
+            Foreign key fields inst allowed to be renamed
+    """
+    
     # ABC VARS
     immu_confs = IMMU_CONFS_BASE_KEY_VALUE
     
