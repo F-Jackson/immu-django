@@ -118,7 +118,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 IMMU_URL = 'localhost:3322'
 IMMU_DEFAULT_EXPIRE_TIME = None
-IMMU_SESSION_EXPIRE_TIME = None
 IMMU_DEFAULT_DB = 'defaultdb'
 IMMU_USER = 'immudb'
 IMMU_PASSWORD = 'immudb'

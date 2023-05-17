@@ -1,6 +1,7 @@
 import json
 from typing import Dict
 from django.db import models
+from django.apps import apps
 
 from immudb.datatypes import DeleteKeysRequest
 
@@ -23,13 +24,21 @@ set_not_verified_refs_and_collections_in_multiple, \
 set_refs_to_unique, \
 set_verified_refs_and_collections_in_multiple
 
-from immudb_connection.utils import random_key
+from immudb_connection.sql.alter import TableAlter
+from immudb_connection.sql.creators import TableCreator
+from immudb_connection.sql.getters import GetWhere
+from immudb_connection.sql.models import SQLModel
+from immudb_connection.sql.setters import InsertMaker
+
+from immudb_connection.utils import lowercase_and_add_space, random_key
 
 
 immu_client = starting_db()
 databases = immu_client.databaseList()
 
-def immu_conf_key_value(cls):
+def immu_key_value_class(cls):
+    cls.immu_confs = cls.immu_confs.copy()
+    
     for key, value in IMMU_CONFS_BASE_KEY_VALUE.items():
         if key not in cls.immu_confs:
             cls.immu_confs[key] = value
@@ -39,8 +48,7 @@ def immu_conf_key_value(cls):
         
     return cls
 
-@immu_conf_key_value
-class ImmudbKeyValue(models.Model):
+class ImmudbKeyField(models.Model):
     # DONT TOUCH
     verified = models.BooleanField(default=False)
     create_multi = models.JSONField(null=True, blank=True)
@@ -65,7 +73,8 @@ class ImmudbKeyValue(models.Model):
         # Verify if is called by multi creation if it is stop the function and auth obj per obj
         if self.create_multi is not None and self.create_multi != 'MULTI':
             for obj_key, value in self.create_multi.items():
-                ImmudbKeyValue.objects.create(create_multi='MULTI', key=obj_key, **value)
+                cls = type(self)
+                cls.objects.create(create_multi='MULTI', key=obj_key, **value)
             return
         
         values = auth_and_get_get_fields(self)
@@ -323,4 +332,169 @@ class ImmudbKeyValue(models.Model):
         )
         
         return {key.decode(): value.decode() for key, value in scan.items()}
+
+
+def immu_sql_class(cls):
+    """
+        Decorator for load immu_confs, create table and alter table.
+        
+        PUT THIS DECORATOR ON EVERY MODEL THAT HIERARCHYS 'ImmudbSQL'
+    """
+    cls.immu_confs = cls.immu_confs.copy()
+    
+    table_name = f'{apps.get_containing_app_config(cls.__module__).label}_{lowercase_and_add_space(cls.__name__)}'
+    
+    # CREATE TABLE
+    table_creator = TableCreator(cls, immu_client, table_name)
+    db_fields = table_creator.create_table()
+    
+    # ALTER TABLE
+    table_alter = TableAlter(immu_client, table_name, db_fields, cls.__name__)
+    table_alter.alter()
+        
+    cls.immu_confs['table_name'] = table_name
+        
+    return cls
+
+class ImmudbSQL(models.Model):    
+    # ABC VARS
+    immu_confs = IMMU_CONFS_BASE_KEY_VALUE
+    
+    # CONFIG METHODS     
+    class Meta:
+        """
+            Setting the abc class for only interact with the immu database
+        """
+        abstract = True
+        managed = False
+    
+    
+    @classmethod
+    def on_call(cls):
+        immu_client.useDatabase(cls.immu_confs['database'])
+        
+        
+    # SETTER
+    @classmethod
+    def create(cls, **kwargs) -> int:
+        cls.on_call()
+        
+        insert_maker = InsertMaker(cls, cls.immu_confs['database'], cls.immu_confs['table_name'], immu_client)
+        
+        inserts = insert_maker.make(**kwargs)
+
+        resp = immu_client.sqlExec(f"""
+            BEGIN TRANSACTION;
+                {inserts['insert_string']}
+            COMMIT;
+        """, inserts['values'])
+        
+        if 'jsons' in inserts:
+            immu_client.useDatabase('jsonsqlfields')
+            resp = immu_client.setAll(inserts['jsons'])
+
+        cls.on_call()
+
+        return inserts['sql_model']
+    
+    
+    @classmethod
+    def create_mult(cls, obj_list: list[dict]):
+        cls.on_call()
+        
+        inserts_list = {
+            'insert_string': [],
+            'values': {},
+            'jsons': {},
+            'sql_models': []
+        }
+        
+        for i in range(len(obj_list)):
+            insert_maker = InsertMaker(cls, cls.immu_confs['database'], cls.immu_confs['table_name'], immu_client, i)
+            inserts = insert_maker.make(**obj_list[i])
+            
+            inserts_list['insert_string'].append(inserts['insert_string'])
+            inserts_list['values'].update(inserts['values'])
+            inserts_list['jsons'].update(inserts['jsons'])
+            inserts_list['sql_models'].append(inserts['sql_model'])
+            
+        insert_string = ' '.join(inserts_list['insert_string'])
+        resp = immu_client.sqlExec(f"""
+            BEGIN TRANSACTION;
+                {insert_string}
+            COMMIT;
+        """, inserts_list['values'])
+        
+        if len(inserts_list['jsons']) > 0:
+            immu_client.useDatabase('jsonsqlfields')
+            resp = immu_client.setAll(inserts_list['jsons'])
+
+        cls.on_call()
+        
+        return inserts_list['sql_models']
+        
+    
+    # GETTER
+    @classmethod
+    def get(
+        cls, *, order_by: str = None,
+        **kwargs) -> SQLModel:
+        cls.on_call()
+        
+        getter = GetWhere(
+            cls.immu_confs['database'], 
+            cls.immu_confs['table_name'], 
+            immu_client
+        )
+        
+        values = getter.get(
+            size_limit=1,
+            order_by=order_by, **kwargs
+        )
+        
+        return values
+        
+    
+    @classmethod
+    def all(
+        cls, *,
+        limit: int = None, offset: int = None, 
+        order_by: str = None) -> list[SQLModel]:
+        cls.on_call()
+        
+        getter = GetWhere(
+            cls.immu_confs['database'], 
+            cls.immu_confs['table_name'], 
+            immu_client
+        )
+        
+        values = getter.get(
+            order_by=order_by,
+            limit=limit, offset=offset
+        )
+
+        return values
+    
+    
+    @classmethod
+    def filter(    
+        cls, *,
+        time_travel: dict = None,
+        limit: int = None, offset: int = None,
+        order_by: str = None, **kwargs) -> list[SQLModel]:
+        cls.on_call()
+        
+        getter = GetWhere(
+            cls.immu_confs['database'], 
+            cls.immu_confs['table_name'], 
+            immu_client
+        )
+        
+        values = getter.get(
+            order_by=order_by, 
+            limit=limit, offset=offset,
+            time_travel=time_travel, **kwargs
+        )
+
+        return values
     

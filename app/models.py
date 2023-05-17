@@ -30,7 +30,6 @@ from immudb_connection.sql.getters import GetWhere
 from immudb_connection.sql.models import SQLModel
 from immudb_connection.sql.setters import InsertMaker
 
-from immudb_connection.utils import ImmuForeignKey
 from immudb_connection.utils import lowercase_and_add_space, random_key
 
 
@@ -493,16 +492,4 @@ class ImmudbSQL(models.Model):
         )
 
         return values
-      
-
-@immu_sql_class
-class TestSQL(ImmudbSQL):
-    nome = models.CharField(max_length=200)
-    po = models.BigAutoField(primary_key=True)
-    json = models.JSONField()
     
-@immu_sql_class
-class Test2SQL(ImmudbSQL):
-    num = models.IntegerField(primary_key=True)
-    fg = ImmuForeignKey(TestSQL, primary_key=True)
-    json = models.JSONField()

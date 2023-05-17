@@ -5,10 +5,16 @@ from .exceptions import LoginError, LogoutError
 
 def starting_db() -> ImmudbClient:
     try:
-        client = ImmudbClient(settings.IMMU_URL, 
-                              publicKeyFile=settings.IMMU_PUBLIC_KEY,
-                              rs=PersistentRootService())
-        client.login(settings.IMMU_USER, settings.IMMU_PASSWORD)
+        client = ImmudbClient(
+            getattr(settings, 'IMMU_URL', 'localhost:3322'), 
+            publicKeyFile=getattr(settings, 'IMMU_PUBLIC_KEY', None),
+            rs=PersistentRootService()
+        )
+        
+        client.login(
+            getattr(settings, 'IMMU_USER', 'immudb'), 
+            getattr(settings, 'IMMU_PASSWORD', 'immudb')
+        )
         
         databases = client.databaseList()
 
