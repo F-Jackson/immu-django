@@ -340,7 +340,7 @@ def immu_sql_class(cls):
             Decorator for load immu_confs, create table and alter table.
         
         USE:
-            Put this decorator on every model that hierarchys 'ImmudbSQL'
+            Put this decorator on every model that hierarchys 'ImmudbSQL'.
     """
     
     # COPYING IMMUCONFS FROM BASE CLASS
@@ -365,32 +365,42 @@ def immu_sql_class(cls):
 class ImmudbSQL(models.Model):    
     """
         INFO:
-            Abstract class for use immudb inside Django
+            Abstract class for use immudb inside Django.
         
         USE:
             Put this class the only parent of a class that you want to use a sql model for immudb.\n
             Put an 'immu_sql_class' decorator on the class that you want to use a sql model for immudb.\n
             If you want to add a json field don't place anything inside of it.\n
-            If you want to add a foreign key field use the 'ImmuForeignKey' class, place a class that hierarchies 'ImmudbSQL' and chose if you want it to be a primary key.\n
-            Foreign key fields can't have another class that have a foreign key field 
+            If you want to add a foreign key field use the 'ImmuForeignKey' class, place a class that hierarchies 'ImmudbSQL' with the same database and chose if you want it to be a primary key.\n
+            Foreign key fields can't have another class that have a foreign key field.
+            
+        ALLOWED VAR TYPES:
+            models.IntegerField,
+            models.FloatField,
+            models.JsonField,
+            models.BigAutoField,
+            models.CharField,
+            ImmuForeignKey
             
         ALERT:
             Don't overwrite these variables: immu_confs.\n
+            Don't overwrite Meta class.\n
+            Don't overwrite te class methods.\n
             Only snake case for variables is allowed.\n
-            BigAutofield must be a primary key
+            BigAutofield must be a primary key.
             
         NEW_FIELDS:
             To add a new field just add a new variable.\n
             When placing a new field put 'null=True' inside it.\n
             Big autofields is not allowed as new fields.\n
             New primarys keys are not allowed.\n
-            Foreign key fields is not allowed as new field
+            Foreign key fields is not allowed as new field.
             
         RENAME_FIELDS:
             To rename just change the name of a variable.\n
             Don't try to rename primary keys fields.\n
             Json fields inst allowed to be renamed.\n
-            Foreign key fields inst allowed to be renamed
+            Foreign key fields inst allowed to be renamed.
     """
     
     # ABC VARS
@@ -399,27 +409,48 @@ class ImmudbSQL(models.Model):
     # CONFIG METHODS     
     class Meta:
         """
-            Setting the abc class for only interact with the immu database
+            Setting the abc class for only interact with the immu database.
         """
+        
         abstract = True
         managed = False
     
     
     @classmethod
     def on_call(cls):
+        """
+            Use the immu_confs database.
+            
+            Returns:
+                None
+        """
+        
         immu_client.useDatabase(cls.immu_confs['database'])
         
         
     # SETTER
     @classmethod
-    def create(cls, **kwargs) -> int:
+    def create(cls, **kwargs) -> SQLModel:
+        """
+            Insert an transaction with one object inside this class sql table.
+        
+            Kwargs:
+                kwargs (kwargs) NOT NULL: kwargs for make an trasaction inside the table: [\n 
+                        JsonField must be given an dict object,\n
+                        ImmuForeignKey must be given an SQLModel object
+                \n
+                ]
+            Returns:
+                SQLModel: Return an object with given atributes after saving
+        """
+        
         cls.on_call()
         
         insert_maker = InsertMaker(cls, cls.immu_confs['database'], cls.immu_confs['table_name'], immu_client)
         
         inserts = insert_maker.make(**kwargs)
 
-        resp = immu_client.sqlExec(f"""
+        immu_client.sqlExec(f"""
             BEGIN TRANSACTION;
                 {inserts['insert_string']}
             COMMIT;
@@ -427,7 +458,7 @@ class ImmudbSQL(models.Model):
         
         if 'jsons' in inserts:
             immu_client.useDatabase('jsonsqlfields')
-            resp = immu_client.setAll(inserts['jsons'])
+            immu_client.setAll(inserts['jsons'])
 
         cls.on_call()
 
@@ -435,7 +466,20 @@ class ImmudbSQL(models.Model):
     
     
     @classmethod
-    def create_mult(cls, obj_list: list[dict]):
+    def create_mult(cls, kwargs_list: list[dict]):
+        """
+            Insert an transaction with multiple objects inside this class sql table.
+        
+            Args:
+                kwargs_list (list[dict]) NOT NULL: list of kwargs(dict) for make an trasaction with multiple objects inside the table:\n
+                    ALERT: [ 
+                        JsonField must be given an dict object,\n
+                        ImmuForeignKey must be given an SQLModel object
+                    ]
+            Returns:
+                list[SQLModel]: Return an object with given atributes after saving
+        """
+        
         cls.on_call()
         
         inserts_list = {
@@ -445,9 +489,9 @@ class ImmudbSQL(models.Model):
             'sql_models': []
         }
         
-        for i in range(len(obj_list)):
+        for i in range(len(kwargs_list)):
             insert_maker = InsertMaker(cls, cls.immu_confs['database'], cls.immu_confs['table_name'], immu_client, i)
-            inserts = insert_maker.make(**obj_list[i])
+            inserts = insert_maker.make(**kwargs_list[i])
             
             inserts_list['insert_string'].append(inserts['insert_string'])
             inserts_list['values'].update(inserts['values'])
@@ -455,7 +499,7 @@ class ImmudbSQL(models.Model):
             inserts_list['sql_models'].append(inserts['sql_model'])
             
         insert_string = ' '.join(inserts_list['insert_string'])
-        resp = immu_client.sqlExec(f"""
+        immu_client.sqlExec(f"""
             BEGIN TRANSACTION;
                 {insert_string}
             COMMIT;
@@ -463,7 +507,7 @@ class ImmudbSQL(models.Model):
         
         if len(inserts_list['jsons']) > 0:
             immu_client.useDatabase('jsonsqlfields')
-            resp = immu_client.setAll(inserts_list['jsons'])
+            immu_client.setAll(inserts_list['jsons'])
 
         cls.on_call()
         
@@ -475,6 +519,36 @@ class ImmudbSQL(models.Model):
     def get(
         cls, *, order_by: str = None,
         **kwargs) -> SQLModel:
+        """
+            Search an object inside this class sql table.
+        
+            Kwargs:
+                order_by (string): order by an attribute, put '-'(negative value) in the beginning of the string for reverse order,\n
+                kwargs (kwargs) NOT NULL: kwargs for making a search and get an SQLModel object, you can use search parameters to make searches more accurate:
+                    ALERT: [
+                        Can't search for jsons
+                    ]
+
+                    SEARCH_PARAMETERS: [
+                        __not: Retrieve an object without the given attribute,\n
+                        __in: Retrieve an object where a field matches any value in a list,\n
+                        __not_in: Retrieve an object where a field doesn't match any value in a list,\n
+                        __startswith: Retrieve an object where a field starts with a specific substring (case-sensitive),\n
+                        __endswith: Retrieve an object where a field ends with a specific substring (case-sensitive),\n
+                        __contains: Retrieve an object where a field contains a specific substring (case-sensitive),\n
+                        __not_contains: Retrieve an object where a field not contains a specific substring (case-sensitive),\n
+                        __regex: Retrieve an object where a field matches a specific regular expression pattern (case-sensitive),\n
+                        __gt: Retrieve an object where a field is greater than a specific value,\n
+                        __gte: Retrieve an object where a field is greater than or equal to a specific value,\n
+                        __lt: Retrieve an object where a field is less than a specific value,\n
+                        __lte: Retrieve an object where a field is less than or equal to a specific value
+                    ]
+                \n
+                ]
+            Returns:
+                SQLModel: Return an object that was retrived by the search
+        """
+        
         cls.on_call()
         
         getter = GetWhere(
@@ -496,6 +570,17 @@ class ImmudbSQL(models.Model):
         cls, *,
         limit: int = None, offset: int = None, 
         order_by: str = None) -> list[SQLModel]:
+        """
+            Get all objects inside the table
+        
+            Kwargs:
+                order_by (string): order by an attribute, put '-'(negative value) in the beginning of the string for reverse order,\n
+                limit (int): limit size of the retriven objecs list,\n
+                offset (int): start search from index\n
+            Returns:
+                list[SQLModel]: Return all objects inside the table
+        """
+        
         cls.on_call()
         
         getter = GetWhere(
@@ -518,6 +603,42 @@ class ImmudbSQL(models.Model):
         time_travel: dict = None,
         limit: int = None, offset: int = None,
         order_by: str = None, **kwargs) -> list[SQLModel]:
+        """
+            Get all objects inside the table
+        
+            Kwargs:
+                order_by (string): order by an attribute, put '-'(negative value) in the beginning of the string for reverse order,\n
+                limit (int): limit size of the retriven objecs list,\n
+                offset (int): start search from index,\n
+                time_travel ({
+                    'since': tx_id (int) or date (string with format YYYY-MM-DD HH:MM) OR 'until': tx_id (int) or date (string with format YYYY-MM-DD HH:MM),
+                    'before': tx_id (int) or date (string with format YYYY-MM-DD HH:MM) OR 'after': tx_id (int) or date (string with format YYYY-MM-DD HH:MM)
+                }): Specify temporal constraints for the search using keys, \n
+                kwargs (kwargs) NOT NULL: kwargs for making a search and get SQLModel objects, you can use search parameters to make searches more accurate:
+                    ALERT: [
+                        Can't search for jsons
+                    ]
+
+                    SEARCH_PARAMETERS: [
+                        __not: Retrieve all objects without the given attribute,\n
+                        __in: Retrieve all objects where a field matches any value in a list,\n
+                        __not_in: Retrieve all objects where a field doesn't match any value in a list,\n
+                        __startswith: Retrieve all objects where a field starts with a specific substring (case-sensitive),\n
+                        __endswith: Retrieve all objects where a field ends with a specific substring (case-sensitive),\n
+                        __contains: Retrieve all objects where a field contains a specific substring (case-sensitive),\n
+                        __not_contains: Retrieve all objects where a field not contains a specific substring (case-sensitive),\n
+                        __regex: Retrieve all objects where a field matches a specific regular expression pattern (case-sensitive),\n
+                        __gt: Retrieve all objects where a field is greater than a specific value,\n
+                        __gte: Retrieve all objects where a field is greater than or equal to a specific value,\n
+                        __lt: Retrieve all objects where a field is less than a specific value,\n
+                        __lte: Retrieve all objects where a field is less than or equal to a specific value
+                    ]
+                \n
+                ]
+            Returns:
+                list[SQLModel]: Return all objects inside the table
+        """
+        
         cls.on_call()
         
         getter = GetWhere(
