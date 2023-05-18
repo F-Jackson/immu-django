@@ -30,11 +30,8 @@ ___
    ```base
    pip install immu-django
    ```
-
 ___
-## Usage
-
-### Optinal
+## Optinal Configuration
 
 #### Define Immu confs inside the settings.py
 - IMMU_URL = (str) (default: 'localhost:3322') *The url/ip where the immudb is hosted*.
@@ -43,8 +40,11 @@ ___
 - IMMU_USER = (str) (default: 'immudb') *The user for login inside the immudb*.
 - IMMU_PASSWORD = (str) (default: 'immudb') *The password for login inside the immudb*.
 - IMMU_PUBLIC_KEY = (str) (default: None) *The public key path for immudb encrypt system*.
+___
+## Basic Usage
+note: if you want to learn all about immu-django library read immu-django.abc_models.py file 
 
-### Immu model key/value
+#### Immu model key/value
 1. Import the abstract class and the class decorator inside your app models.py:
 ```base
 from immu-django.abc_models import ImmudbKeyField, immu_key_value_class
@@ -99,6 +99,37 @@ class ExampleModel(ImmudbKeyField):
 - starts_with = *Get all objects that the key starts with the given prefix*: ```ExampleModel.starts_with(prefix='row_')``` ```-> Dict[key (str): value (dict)]```
 
 ___
-### Immu model sql
-1.
+#### Immu model sql
+1. Import the abstract class and the class decorator inside your app models.py:
+```base
+from immu-django.abc_models import ImmudbSQL, immu_sql_class
+```
+
+2. Import the django models:
+```base
+from django.db import models
+```
+
+3. Create an model class that only hierarchys ImmudbKeyField and have the immu_key_value_class as decorator:
+```base
+@immu_sql_class
+class ExampleModel(ImmudbSQL):
+    
+```
+
+4. Place model atributes inside the class:
+```base
+@immu_sql_class
+class ExampleModel(ImmudbSQL):
+    id = models.BigAutoField(primary_key=True)
+    name = models.CharField(max_length=255, null=True)
+    number = models.IntegerField()
+```
+
+5. Use the class methods for interact with immudb key/value model:
+- create = *Insert an transaction with one object inside this class sql table*: `````` ```-> SQLModel```
+- create_mult = *Insert an transaction with multiple objects inside this class sql table*: `````` ```-> list[SQLModel, ...]```
+- all = *Search an object inside this class sql table*: `````` ```-> list[SQLModel, ...]```
+- get = *Get all objects inside the table*: `````` ```-> SQLModel```
+- filter = *Get all objects inside the table that match given parameters*: `````` ```-> list[SQLModel, ...]```
 ___

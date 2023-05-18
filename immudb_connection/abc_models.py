@@ -822,7 +822,7 @@ class ImmudbSQL(models.Model):
         limit: int = None, offset: int = None,
         order_by: str = None, **kwargs) -> list[SQLModel]:
         """
-            Get all objects inside the table
+            Get all objects inside the table that match given parameters
         
             Kwargs:
                 order_by (string): order by an attribute, put '-'(negative value) in the beginning of the string for reverse order,\n
