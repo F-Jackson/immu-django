@@ -72,13 +72,11 @@ class ExampleModel(ImmudbKeyField):
 ```
 
 5. Use the class methods for interact with immudb key/value model:
-- create = *Create an key value row inside the immudb database*: 
-```ExampleModel.create(key='row_key', name='Jack', number=1)``` ```-> None``` 
+- create = *Create an key value row inside the immudb database*: ```ExampleModel.create(key='row_key', name='Jack', number=1)``` ```-> None``` 
 
 - create_mult = *Create multiples objects inside the immu database in one transaction*: ```ExampleModel.create_mult(obj_list=[{'key': 'row_key', 'values': {'name': 'Jack', 'number': 1}}])``` ```-> None```
 
-- set_ref = *Set a reference value to a object with the given key*:
-```ExampleModel.set_ref(key='row_key', ref_key='ref_key')``` ```-> None```
+- set_ref = *Set a reference value to a object with the given key*: ```ExampleModel.set_ref(key='row_key', ref_key='ref_key')``` ```-> None```
 
 - set_score = *Set collection and score for a object*: ```ExampleModel.set_score(key='row_key', collection='collection_key', score=10.2)``` ```-> None```
 
