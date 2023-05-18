@@ -1,6 +1,6 @@
 import json
-from immudb_connection.sql.alter import _TableField
-from immudb_connection.sql.models import SQLERROR, SQLModel
+from immu_django.sql.alter import _TableField
+from immu_django.sql.models import SQLERROR, SQLModel
 
 
 class GetWhere:

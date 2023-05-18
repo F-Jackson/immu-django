@@ -3,7 +3,7 @@ from django.utils.timezone import now
 import json
 from typing import Dict
 
-from immudb_connection.key_value.constants import NOT_FIELDS_VALUES
+from immu_django.key_value.constants import NOT_FIELDS_VALUES
 
 
 # SAVING METHOD

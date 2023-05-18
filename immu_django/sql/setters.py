@@ -1,6 +1,6 @@
 import json
-from immudb_connection.sql.models import SQLModel
-from immudb_connection.utils import lowercase_and_add_space
+from immu_django.sql.models import SQLModel
+from immu_django.utils import lowercase_and_add_space
 from django.apps import apps
 from django.db import DEFAULT_DB_ALIAS, connections
 from django.db.models import JSONField, AutoField

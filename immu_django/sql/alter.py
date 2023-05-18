@@ -1,4 +1,4 @@
-from immudb_connection.exceptions import TableAlterError
+from immu_django.exceptions import TableAlterError
 
 
 class _TableField:

@@ -3,7 +3,7 @@ from django.db.models import AutoField, JSONField
 from django.db import DEFAULT_DB_ALIAS, connections
 from django.apps import apps
 
-from immudb_connection.utils import lowercase_and_add_space
+from immu_django.utils import lowercase_and_add_space
 
 
 connection = connections[DEFAULT_DB_ALIAS]

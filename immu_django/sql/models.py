@@ -1,6 +1,6 @@
 import json
-from immudb_connection.sql.alter import _TableField
-from immudb_connection.sql.constants import NOT_FIELDS
+from immu_django.sql.alter import _TableField
+from immu_django.sql.constants import NOT_FIELDS
 
 
 class SQLModel:

@@ -9,7 +9,7 @@ ___
 - Django 4.2
 - immudb-py 1.4.0
 - Immudb 1.4.1
-- ImmucLient 1.4.1
+- Immuclient 1.4.1
 
 
 ___
@@ -42,12 +42,12 @@ ___
 - IMMU_PUBLIC_KEY = (str) (default: None) *The public key path for immudb encrypt system*.
 ___
 ## Basic Usage
-note: if you want to learn all about immu-django library read immu-django.abc_models.py file 
+note: if you want to learn all about immu-django library read immu_django.abc_models.py file 
 
 #### Immu model key/value
 1. Import the abstract class and the class decorator inside your app models.py:
 ```base
-from immu-django.abc_models import ImmudbKeyField, immu_key_value_class
+from immu_django.abc_models import ImmudbKeyField, immu_key_value_class
 ```
 
 2. Import the django models:
@@ -102,7 +102,7 @@ ___
 #### Immu model sql
 1. Import the abstract class and the class decorator inside your app models.py:
 ```base
-from immu-django.abc_models import ImmudbSQL, immu_sql_class
+from immu_django.abc_models import ImmudbSQL, immu_sql_class
 ```
 
 2. Import the django models:

@@ -5,17 +5,17 @@ from django.apps import apps
 
 from immudb.datatypes import DeleteKeysRequest
 
-from immudb_connection.connection import starting_db
-from immudb_connection.key_value.constants import IMMU_CONFS_BASE_KEY_VALUE
+from immu_django.connection import starting_db
+from immu_django.key_value.constants import IMMU_CONFS_BASE_KEY_VALUE
 
-from immudb_connection.key_value.getters import get_obj_common_infos, \
+from immu_django.key_value.getters import get_obj_common_infos, \
 make_obj_after_other_obj, \
 make_obj_with_tx, \
 get_only_verified_obj, \
 make_objs_history_for_a_key, \
 make_objs_on_collection
 
-from immudb_connection.key_value.setters import auth_and_get_get_fields, \
+from immu_django.key_value.setters import auth_and_get_get_fields, \
 encode_all_objs_key_value_to_saving_in_multiple, \
 get_all_objs_key_value_in_multiple, \
 save_obj_in_database_to_unique, \
@@ -24,13 +24,13 @@ set_not_verified_refs_and_collections_in_multiple, \
 set_refs_to_unique, \
 set_verified_refs_and_collections_in_multiple
 
-from immudb_connection.sql.alter import TableAlter
-from immudb_connection.sql.creators import TableCreator
-from immudb_connection.sql.getters import GetWhere
-from immudb_connection.sql.models import SQLModel
-from immudb_connection.sql.setters import InsertMaker
+from immu_django.sql.alter import TableAlter
+from immu_django.sql.creators import TableCreator
+from immu_django.sql.getters import GetWhere
+from immu_django.sql.models import SQLModel
+from immu_django.sql.setters import InsertMaker
 
-from immudb_connection.utils import lowercase_and_add_space, random_key
+from immu_django.utils import lowercase_and_add_space, random_key
 
 
 immu_client = starting_db()
