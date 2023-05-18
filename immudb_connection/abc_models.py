@@ -349,7 +349,7 @@ class ImmudbKeyField(models.Model):
             Get the last saved row given the key or reference
             
             Kwargs:
-                key_or_ref (str): index key or reference key of the row,\n
+                key_or_ref (str) NOT NULL: index key or reference key of the row,\n
                 only_verified (bool): get only verified row
             
             Returns:
@@ -436,7 +436,7 @@ class ImmudbKeyField(models.Model):
             Get all rows keys keys that have the given transaction id
             
             Kwargs:
-                tx_id (int): transaction id of the row
+                tx_id (int) NOT NULL: transaction id of the row
             
             Returns:
                 list[str]: list of all rows keys that has the given transaction id
@@ -453,8 +453,8 @@ class ImmudbKeyField(models.Model):
             Get a only verified row using a key and transtion id
             
             Kwargs:
-                key (str): index key of the row,\n
-                tx_id (int): transaction id of the row
+                key (str) NOT NULL: index key of the row,\n
+                tx_id (int) NOT NULL: transaction id of the row
             
             Returns:
                 dict({
