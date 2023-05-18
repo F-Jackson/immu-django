@@ -74,7 +74,7 @@ class ExampleModel(ImmudbKeyField):
 5. Use the class methods for interact with immudb key/value model:
 - create = *Create an key value row inside the immudb database*: ```ExampleModel.create(key='row_key', name='Jack', number=1)``` ```-> None``` 
 
-- create_mult = *Create multiples objects inside the immu database in one transaction*: ```ExampleModel.create_mult(obj_list=[{'key': 'row_key', 'values': {'name': 'Jack', 'number': 1}}])``` ```-> None```
+- create_mult = *Create multiples objects inside the immu database in one transaction*: ```ExampleModel.create_mult(obj_list=[{'key': 'row_key', 'values': {'name': 'Jack', 'number': 1}}, ...])``` ```-> None```
 
 - set_ref = *Set a reference value to a object with the given key*: ```ExampleModel.set_ref(key='row_key', ref_key='ref_key')``` ```-> None```
 
@@ -110,7 +110,7 @@ from immu-django.abc_models import ImmudbSQL, immu_sql_class
 from django.db import models
 ```
 
-3. Create an model class that only hierarchys ImmudbKeyField and have the immu_key_value_class as decorator:
+3. Create an model class that only hierarchys ImmudbSQL and have the immu_sql_class as decorator:
 ```base
 @immu_sql_class
 class ExampleModel(ImmudbSQL):
@@ -127,9 +127,9 @@ class ExampleModel(ImmudbSQL):
 ```
 
 5. Use the class methods for interact with immudb key/value model:
-- create = *Insert an transaction with one object inside this class sql table*: `````` ```-> SQLModel```
-- create_mult = *Insert an transaction with multiple objects inside this class sql table*: `````` ```-> list[SQLModel, ...]```
-- all = *Search an object inside this class sql table*: `````` ```-> list[SQLModel, ...]```
-- get = *Get all objects inside the table*: `````` ```-> SQLModel```
-- filter = *Get all objects inside the table that match given parameters*: `````` ```-> list[SQLModel, ...]```
+- create = *Insert an transaction with one object inside this class sql table*: ```ExampleModel.create(name='Jack', number=1)``` ```-> SQLModel```
+- create_mult = *Insert an transaction with multiple objects inside this class sql table*: ```ExampleModel.create_mult([{'name':'Jack', 'number':1}, ...])``` ```-> list[SQLModel, ...]```
+- all = *Search an object inside this class sql table*: ```ExampleModel.all()``` ```-> list[SQLModel, ...]```
+- get = *Get all objects inside the table*: ```ExampleModel.get(**kwargs)``` ```-> SQLModel```
+- filter = *Get all objects inside the table that match given parameters*: ```ExampleModel.filter(**kwargs)``` ```-> list[SQLModel, ...]```
 ___
