@@ -42,37 +42,83 @@ databases = immu_client.databaseList()
 List of all databases inside your immudb
 """
 
+
 def immu_key_value_class(cls):
+    """
+        INFO:
+            Decorator for load immu_confs, create table and alter table.
+        
+        USE:
+            Put this decorator on every model that hierarchys 'ImmudbKeyField'.
+    """
+    
+    # COPYING IMMUCONFS FROM BASE CLASS
     cls.immu_confs = cls.immu_confs.copy()
     
+    # GETTING CHANGES ONE THE IMMU CONFS
     for key, value in IMMU_CONFS_BASE_KEY_VALUE.items():
         if key not in cls.immu_confs:
             cls.immu_confs[key] = value
             
+    # CREATING DATABASE IF DOES NOT EXISTS
     if cls.immu_confs['database'] not in databases:
         immu_client.createDatabase(cls.immu_confs['database'])
         
     return cls
 
 class ImmudbKeyField(models.Model):
-    # DONT TOUCH
+    """
+        INFO:
+            Abstract class for use immudb inside Django.
+        
+        USE:
+            Put this class the only parent of a class that you want to use a key/value model for immudb.\n
+            Put an 'immu_key_value_class' decorator on the class that you want to use a key/value model for immudb.\n
+            
+        ALLOWED VAR TYPES:
+            models.IntegerField,\n
+            models.FloatField,\n
+            models.JsonField,\n
+            models.CharField,\n
+            models.BooleanField
+            
+        ALERT:
+            Don't overwrite Meta class.\n
+            Don't overwrite the class methods.\n
+            Only snake case for variables is allowed.\n
+            Don't overwrite these variables inside the model: key, create_multi, verified
+    """
+    
+    # ABC VARS
     verified = models.BooleanField(default=False)
     create_multi = models.JSONField(null=True, blank=True)
     key = models.CharField(max_length=255, default=random_key(immu_client))
     
-    # ABC VARS
     immu_confs = IMMU_CONFS_BASE_KEY_VALUE
+    """
+        Configs for immu abstract class
+        
+        Kwargs:
+            expireableDateTime ({
+                'seconds': seconds (int),
+                'minutes': minutes (int),
+                'hours': hours (int),
+                'days': days (int)
+            }): 
+            database (str): name of the database to ultilized for the class
+    """
     
     # CONFIG METHODS     
     class Meta:
         """
-            Setting the abc class for only interact with the immu database
+            Setting the abc class for only interact with the immu database.
         """
+        
         abstract = True
         managed = False
         
 
-    def save(self, *args, **kwargs) -> dict:
+    def save(self, *args, **kwargs):
         """
             save the model inside the immu datase
         """
@@ -98,21 +144,35 @@ class ImmudbKeyField(models.Model):
     
     @classmethod
     def on_call(cls):
+        """
+            Use the immu_confs database.
+            
+            Returns:
+                None
+        """
+        
         immu_client.useDatabase(cls.immu_confs['database'])
     
     
     # SETTERS
     @classmethod
-    def create(cls, 
-               key: str = None, verified: bool = False, *,
+    def create(cls, *,
+               key: str, verified: bool = False,
                refs: list[str] = None, 
                collection_scores: Dict[str, float] = None,
                **kwargs):
         """
-            Creates an object inside the immu database
+            Create an key value row inside the immudb database
             
-            Parameters:
-            key (str): key  
+            Kwargs:
+                key (str) NOT NULL: key for the index the row,\n
+                verified (bool): set row as verified or not inside the db,\n
+                refs (list[str]): set the references for the row,\n
+                collection_scores (dict[str, float]): set the collection for the row and a score of the row,\n
+                kwargs (kwargs) NOT NULL: values for make the value for the row
+                
+            Returns:
+                None
         """
         
         cls.on_call()
@@ -126,10 +186,25 @@ class ImmudbKeyField(models.Model):
         
         
     @classmethod
-    def create_mult(cls, obj_list: list[dict[str, dict, list[str], dict[str, float]]] = None):
+    def create_mult(cls, *, obj_list: list[dict[str, dict, list[str], dict[str, float]]] = None):
         """
             Create multiples objects inside the immu database in one transaction.
-            Using this method 'expireableDateTime' in immu_confs atribute is not not applied 
+            
+            ALERT:
+                Using this method 'expireableDateTime' in immu_confs atribute is not not applied.\n
+                Only rows with references can be set as verified.
+                
+            Args:
+                obj_list ({
+                    key (str) NOT NULL: key for the index the row,\n
+                    values (dict) NOT NULL: values for make the value for the row,\n
+                    verified (bool): set row as verified or not inside the db,\n
+                    refs (list[str]): set the references for the row,\n
+                    collection_scores (dict[str, float]): set the collection for the row and a score of the row,\n
+                }) NOT NULL: list of kwargs(dict) for make an trasaction with multiple rows inside the database
+                            
+            Returns:
+                None
         """
         
         cls.on_call()
@@ -156,9 +231,17 @@ class ImmudbKeyField(models.Model):
                     
                     
     @classmethod
-    def set_ref(cls, key: str, ref_key: str, verified: bool = False):
+    def set_ref(cls, *, key: str, ref_key: str, verified: bool = False):
         """
             Set a ref value to a object with the given key
+            
+            Kwargs:
+                key (str) NOT NULL: index key of the row,\n
+                ref_key (str) NOT NULL: reference key to set as reference for the row,\n
+                verified (bool): set row as verified
+                            
+            Returns:
+                None
         """
         
         cls.on_call()
@@ -170,9 +253,17 @@ class ImmudbKeyField(models.Model):
             
     
     @classmethod
-    def set_score(cls, key: str, collection: str, score: float):
+    def set_score(cls, *, key: str, collection: str, score: float):
         """
             Set collection and score for a object
+            
+            Kwargs:
+                key (str) NOT NULL: index key of the row,\n
+                collection (str) NOT NULL: set a collection for the row,\n
+                score (float) NOT NULL: set score for row inside the the collection
+                            
+            Returns:
+                None
         """
         
         cls.on_call()
@@ -185,6 +276,12 @@ class ImmudbKeyField(models.Model):
     def delete(cls, key: str) -> bool:
         """
             Set the object with the given key as deleted
+            
+            Args:
+                key (str) NOT NULL: index key of the row
+                            
+            Returns:
+                True if was set as deleted or False if was not set as deleted
         """
         
         cls.on_call()
@@ -197,36 +294,74 @@ class ImmudbKeyField(models.Model):
 
     # GETTERS
     @classmethod
-    def after(cls, key: str, tx_id: int, step: int = 0) -> dict:
+    def after(cls, *, key: str, tx_id: int, step: int = 0) -> dict:
         """
-            Get the object after the key and transation id
+            Get the verified row after the key and transation id
+            
+            Kwargs:
+                key (str) NOT NULL: index key of the row to set as reference for the query,\n
+                tx_id (int) NOT NULL: transaction id of the row to set as reference for the query,\n
+                step (int):
+            
+            Returns:
+                dict({
+                    key (str): key of the row,\n
+                    value (dict): value of the row,\n
+                    tx_id (int): transaction id of the row,\n
+                    revision (int): revision of the transaction of the row,\n
+                    verified (bool): True if the row is verified,\n
+                    timestamp (int): timestamp of the creation of the row,\n
+                    ref_key (str | None): reference key of the row if it has
+                }): returns a row in format of dict if found
         """
         
         cls.on_call()
         
         obj_data = immu_client.verifiedGetSince(key.encode(), tx_id + step)
-        
+
         if obj_data:
             return make_obj_after_other_obj(obj_data)
 
 
     @classmethod
-    def all(cls, size_limit: int = 1_000, reverse: bool = True) -> dict[str, str]:
+    def all(cls, *, size_limit: int = 1_000, reverse: bool = True) -> dict[str, str]:
         """
-            Get all objects inside the immu databse
+            Get all objects inside the immu database
+            
+            Kwargs:
+                size_limit (int): limit the size of given rows,\n
+                reverse (int): reverse the order
+            
+            Returns:
+                dict(key (str): value (dict)): returns a dict of key/value
         """
         
         cls.on_call()
         
         scan = immu_client.scan(b'', b'', reverse, size_limit)
         
-        return {key.decode(): value.decode() for key, value in scan.items()}
+        return {key.decode(): json.loads(value.decode()) for key, value in scan.items()}
 
 
     @classmethod
-    def get(cls, key_or_ref: str, only_verified: bool = False) -> dict:
+    def get(cls, *, key_or_ref: str, only_verified: bool = False) -> dict:
         """
-            Get the last saved object
+            Get the last saved row given the key or reference
+            
+            Kwargs:
+                key_or_ref (str): index key or reference key of the row,\n
+                only_verified (bool): get only verified row
+            
+            Returns:
+                dict({
+                    key (str): key of the row,\n
+                    value (dict): value of the row,\n
+                    tx_id (int): transaction id of the row,\n
+                    revision (int): revision of the transaction of the row,\n
+                    verified (bool) IF VERIFIED: True if the row is verified,\n
+                    timestamp (int) IF VERIFIED: timestamp of the creation of the row,\n
+                    ref_key (str | None) IF VERIFIED: reference key of the row if it has
+                }): returns a row in format of dict if found
         """
         
         cls.on_call()
@@ -247,13 +382,33 @@ class ImmudbKeyField(models.Model):
 
 
     @classmethod
-    def get_score(cls, collection: str, tx_id: int = None, 
+    def get_score(cls, *, collection: str, tx_id: int = None, 
                   key: str = '', score: float = None,
                   reverse: bool = True, 
                   min_score: float = 0, max_score: float = 1_000, 
-                  size_limit: int = 1_000, inclusive_seek: bool = True) -> list[dict[str, float, int, dict, int]]:
+                  size_limit: int = 1_000) -> list[dict[str, float, int, dict, int]]:
         """
-            Get objects based on a collection using scores
+            Get rows based on a collection using scores
+            
+            Kwargs:
+                collection (str) NOT NULL: set a collection for the row,\n
+                key (str): index key of the row,\n
+                tx_id (int): transaction id of the row,\n
+                reverse (bool): reverse the order,\n
+                min_score (float): get only rows with a given minimum score,\n
+                max_score (float): get only rows with a given maximum score,\n
+                size_limit (int): limit the size of given rows,\n
+                
+            Returns:
+                list[
+                    dict({
+                        key (str): key of the row,\n
+                        value (dict): value of the row,\n
+                        tx_id (int): transaction id of the row,\n
+                        revision (int): revision of the transaction of the row,\n
+                        score (float): the score of a row inside the collection
+                    }): returns a row in format of dict
+                ]
         """
         
         cls.on_call()
@@ -261,7 +416,7 @@ class ImmudbKeyField(models.Model):
         collection_data = immu_client.zScan(
             zset=collection.encode(), seekKey=key.encode(), 
             seekScore=score, seekAtTx=tx_id,
-            inclusive=inclusive_seek, limit=size_limit,
+            inclusive=True, limit=size_limit,
             desc=reverse,
             minscore=min_score, maxscore=max_score
         )
@@ -276,9 +431,15 @@ class ImmudbKeyField(models.Model):
 
 
     @classmethod
-    def get_tx(cls, tx_id: int) -> list[str]:
+    def get_tx(cls, *, tx_id: int) -> list[str]:
         """
-            Get all objects keys that have the given transation id
+            Get all rows keys keys that have the given transaction id
+            
+            Kwargs:
+                tx_id (int): transaction id of the row
+            
+            Returns:
+                list[str]: list of all rows keys that has the given transaction id
         """
         
         cls.on_call()
@@ -287,9 +448,24 @@ class ImmudbKeyField(models.Model):
 
 
     @classmethod
-    def get_with_tx(cls, key: str, tx_id: int) -> dict:
+    def get_with_tx(cls, *, key: str, tx_id: int) -> dict:
         """
-            Get a only verified obj using a key and transtion id
+            Get a only verified row using a key and transtion id
+            
+            Kwargs:
+                key (str): index key of the row,\n
+                tx_id (int): transaction id of the row
+            
+            Returns:
+                dict({
+                    key (str): key of the row,\n
+                    value (dict): value of the row,\n
+                    tx_id (int): transaction id of the row,\n
+                    revision (int): revision of the transaction of the row,\n
+                    verified (bool): True if the row is verified,\n
+                    timestamp (int): timestamp of the creation of the row,\n
+                    ref_key (str | None): reference key of the row if it has
+                }): returns a row in format of dict if found
         """
         
         cls.on_call()
@@ -302,18 +478,31 @@ class ImmudbKeyField(models.Model):
 
 
     @classmethod
-    def history(cls, key: str, 
-                size_limit: int = 1_000, starting_in: int = 0, 
+    def history(cls, *, key: str, 
+                size_limit: int = 1_000, offset: int = 0, 
                 reverse: bool = True) -> list[dict]:
         """
-            Get the history objects for a key
+            Get the history rows for a key
+            
+            Kwargs:
+                key (str) NOT NULL: index key of the row,\n
+                size_limit (int): limit the size of given rows,\n
+                offset (int): start search from index,\n
+                reverse (bool): reverse the order
+                
+            Returns:
+                list(dict({
+                    key (str): key of the row,\n
+                    value (dict): value of the row,\n
+                    tx_id (int): transaction id of the row
+                })): list the history rows of the key
         """
         
         cls.on_call()
         
         history_data = immu_client.history(
             key.encode(), 
-            starting_in, 
+            offset, 
             size_limit, 
             reverse
         )
@@ -322,11 +511,20 @@ class ImmudbKeyField(models.Model):
 
     
     @classmethod
-    def starts_with(cls, key: str = '', 
+    def starts_with(cls, *, key: str = '', 
                     prefix: str = '', size_limit: int = 1_000, 
                     reverse: bool = True) -> dict[str, str]:
         """
             Get all objects that the key starts with the given prefix
+            
+            Kwargs:
+                key (str): index key of the row,\n
+                prefix (str): search the row that startwith this prefix,\n
+                size_limit (str): limit the size of given rows,\n
+                reverse (bool): reverse the order,\n
+            
+            Returns:
+                dict(key (str): value (dict)): returns a dict of key/value
         """
         
         cls.on_call()
@@ -363,6 +561,11 @@ def immu_sql_class(cls):
     table_alter = TableAlter(immu_client, table_name, db_fields, cls.__name__)
     table_alter.alter()
         
+    # GETTING CHANGES ONE THE IMMU CONFS
+    for key, value in IMMU_CONFS_BASE_KEY_VALUE.items():
+        if key not in cls.immu_confs:
+            cls.immu_confs[key] = value    
+    
     # PUTING TABLE NAME INSIDE IMMUCONFS
     cls.immu_confs['table_name'] = table_name
         
@@ -590,7 +793,7 @@ class ImmudbSQL(models.Model):
             Kwargs:
                 order_by (string): order by an attribute, put '-'(negative value) in the beginning of the string for reverse order,\n
                 limit (int): limit size of the retriven objecs list,\n
-                offset (int): start search from index\n
+                offset (int): start search from index
                 
             Returns:
                 list[SQLModel]: Return all objects inside the table
